@@ -1,6 +1,7 @@
 import {
   QueryClient,
   QueryClientProvider,
+  useMutation,
   useQuery,
 } from "@tanstack/react-query";
 import { StrictMode, useState } from "react";
@@ -25,34 +26,30 @@ const queryClient = new QueryClient();
 
 function DownloadPage({ rpc }: { rpc: IframeRpc }) {
   const [input, setInput] = useState("");
-  const [data, setData] = useState<PlayerApiResult>();
-  const [searching, setSearching] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const videoId = parseVideoId(input);
-    if (!videoId) {
-      toast.error("Invalid video ID or URL");
-      return;
-    }
-    setSearching(true);
-    setData(undefined);
-    try {
-      const result = (await rpc.getStreamingFormats({
-        videoId,
-      })) as PlayerApiResult;
-      setData(result);
-    } catch (err) {
+  const search = useMutation({
+    mutationFn: (videoId: string) =>
+      rpc.getStreamingFormats({ videoId }) as Promise<PlayerApiResult>,
+    onError: (err) => {
       console.error(err);
       toast.error(String(err));
-    } finally {
-      setSearching(false);
-    }
-  };
+    },
+  });
 
   return (
     <div className="mx-auto max-w-lg space-y-4 p-6">
-      <form onSubmit={handleSearch} className="space-y-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const videoId = parseVideoId(input);
+          if (!videoId) {
+            toast.error("Invalid video ID or URL");
+            return;
+          }
+          search.mutate(videoId);
+        }}
+        className="space-y-3"
+      >
         <div className="space-y-1.5">
           <label className="block text-sm font-medium">Video ID</label>
           <input
@@ -65,17 +62,17 @@ function DownloadPage({ rpc }: { rpc: IframeRpc }) {
         </div>
         <button
           type="submit"
-          disabled={searching}
+          disabled={search.isPending}
           className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {searching ? "Searching..." : "Search"}
+          {search.isPending ? "Searching..." : "Search"}
         </button>
       </form>
 
-      {data && (
+      {search.data && (
         <>
           <div className="border-t pt-4" />
-          <DownloadForm data={data} rpc={rpc} />
+          <DownloadForm data={search.data} rpc={rpc} />
         </>
       )}
     </div>
