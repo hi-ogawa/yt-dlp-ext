@@ -7,6 +7,7 @@
 - [ ] fix: fix inline theme script in `src/index.html`
 - [ ] feat: split long audio (cf. `yt-dlp-gui`, `youtube-dl-web`)
 - [ ] feat: embed audio thumbnail
+- [ ] feat: popup action to auto-fill search
 - [ ] feat: support downloading video
 - [ ] chore: icon and logo
 - [ ] chore: rework prd.md

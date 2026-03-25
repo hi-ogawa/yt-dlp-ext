@@ -22,16 +22,6 @@ export default defineConfig({
       build: {
         outDir: "./dist/ext",
         minify: false,
-        copyPublicDir: false,
-        rolldownOptions: {
-          input: {
-            content: "./src/content.ts",
-          },
-          output: {
-            format: "iife",
-            entryFileNames: "[name].js",
-          },
-        },
       },
     },
     page: {
@@ -43,7 +33,11 @@ export default defineConfig({
         copyPublicDir: false,
         rolldownOptions: {
           input: {
-            index: "./src/index.html",
+            content: "./src/content.ts",
+          },
+          output: {
+            format: "iife",
+            entryFileNames: "[name].js",
           },
         },
       },
@@ -81,11 +75,7 @@ export default defineConfig({
       const outDir = builder.environments.client.config.build.outDir;
 
       // Move html from nested path to root
-      cpSync(resolve(outDir, "src/index.html"), resolve(outDir, "index.html"));
       rmSync(resolve(outDir, "src"), { force: true, recursive: true });
-
-      // Copy raw assets (manifest, icons)
-      cpSync("./src/public", outDir, { recursive: true });
 
       // Modify manifest for dev builds
       const manifestPath = resolve(outDir, "manifest.json");

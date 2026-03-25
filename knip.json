@@ -1,6 +1,5 @@
 {
   "entry": [
-    "src/index.tsx",
     "src/content.ts",
     "src/background.ts",
     "e2e/**/*.spec.ts",
