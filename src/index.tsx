@@ -257,12 +257,19 @@ function DownloadForm({
 }
 
 function App() {
-  useTheme();
+  const { cycle, Icon } = useTheme();
 
   return (
     <div className="min-h-screen">
-      <header className="flex h-10 items-center border-b px-3">
+      <header className="flex h-10 items-center justify-between border-b px-3">
         <span className="text-sm font-semibold">yt-dlp-ext</span>
+        <button
+          type="button"
+          onClick={cycle}
+          className="rounded p-1 text-muted-foreground hover:text-foreground"
+        >
+          <Icon className="size-4" />
+        </button>
       </header>
       <DownloadPage />
       <Toaster position="top-right" richColors />
