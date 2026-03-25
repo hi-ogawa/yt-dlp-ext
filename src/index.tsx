@@ -17,7 +17,7 @@ import {
   parseVideoId,
 } from "./lib/youtube-utils.ts";
 import type { PlayerApiResult } from "./lib/youtube.ts";
-import { getWorkerRpc } from "./worker-rpc.ts";
+import { initWorkerRpc } from "./worker-rpc.ts";
 import "./styles.css";
 
 const queryClient = new QueryClient();
@@ -114,7 +114,8 @@ function DownloadForm({
         }),
       ]);
 
-      const opusData = await getWorkerRpc().convertWebmToOpus({
+      const workerRpc = await initWorkerRpc();
+      const opusData = await workerRpc.convertWebmToOpus({
         webmData: result.data,
         metadata: {
           title: params.title,

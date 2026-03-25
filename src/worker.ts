@@ -70,3 +70,5 @@ self.addEventListener("message", async (e: MessageEvent) => {
     self.postMessage(response);
   }
 });
+
+self.postMessage({ type: "ytdl-ready" });
