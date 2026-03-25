@@ -5,6 +5,9 @@
 - [x] chore: nest build under `dist/ext`, `dist/ext-dev`, `dist/yt-dlp-ext.zip`
 - [x] chore: setup `.github`
 - [ ] fix: fix inline theme script in `src/index.html`
+- [ ] feat: split long audio (cf. `yt-dlp-gui`, `youtube-dl-web`)
+- [ ] feat: embed audio thumbnail
+- [ ] feat: support downloading video
 - [ ] chore: icon and logo
 - [ ] chore: rework prd.md
 - [ ] chore: add architecture.md
