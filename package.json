@@ -14,6 +14,7 @@
     "test-e2e-ci": "playwright test --grep-invert='@yt'"
   },
   "dependencies": {
+    "@hiogawa/ffmpeg": "1.0.0-pre.6",
     "@tanstack/react-query": "^5.91.3",
     "lucide-react": "^0.577.0",
     "mediabunny": "^1.40.1",

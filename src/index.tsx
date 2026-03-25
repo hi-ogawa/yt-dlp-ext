@@ -9,6 +9,7 @@ import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
+import { findContainingRange, headerSize } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
   formatBytes,
@@ -21,6 +22,66 @@ import { initWorkerRpc } from "./worker-rpc.ts";
 import "./styles.css";
 
 const queryClient = new QueryClient();
+
+// --- Helpers ---
+
+/** Parse time string like "1:23" or "1:02:30" to seconds. */
+function parseTime(s: string): number {
+  const parts = s.split(":").map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 3) return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
+  if (parts.length === 2) return parts[0]! * 60 + parts[1]!;
+  return parts[0]!;
+}
+
+// Initial header fetch size. WebM headers with Cues are typically small,
+// but YouTube files may have many cue points. 512 KB is generous.
+const HEADER_FETCH_SIZE = 512 * 1024;
+
+/** Fast-seek download: fetch only the byte ranges containing the requested time span. */
+async function downloadFastSeek(opts: {
+  rpc: ContentRpc;
+  workerRpc: Awaited<ReturnType<typeof initWorkerRpc>>;
+  videoId: string;
+  itag: number;
+  startTime: number;
+  endTime: number;
+}): Promise<ArrayBuffer> {
+  const { rpc, workerRpc, videoId, itag, startTime, endTime } = opts;
+
+  // 1. Download header bytes (contains EBML header + Cues)
+  const headerResult = await rpc.downloadHeader({
+    videoId,
+    itag,
+    bytes: HEADER_FETCH_SIZE,
+  });
+
+  // 2. Parse header with libwebm WASM to extract cue points
+  const metadata = await workerRpc.parseWebmHeader({
+    headerData: headerResult.data,
+  });
+
+  // 3. Compute byte range from cue points
+  const range = findContainingRange(metadata, startTime, endTime);
+  const metaSize = headerSize(metadata);
+
+  // 4. Download only the needed clusters
+  const clusterData = await rpc.downloadRange({
+    videoId,
+    itag,
+    start: range.start,
+    end: range.end,
+  });
+
+  // 5. Remux: combine header metadata + partial clusters into valid WebM
+  const metadataSlice = headerResult.data.slice(0, metaSize);
+  const remuxedData = await workerRpc.remuxWebm({
+    metadataBuffer: metadataSlice,
+    frameBuffer: clusterData.data,
+  });
+
+  return remuxedData;
+}
 
 // --- Components ---
 
@@ -108,6 +169,8 @@ function DownloadForm({
   const [title, setTitle] = useState(data.video.title);
   const [artist, setArtist] = useState(data.video.channelName);
   const [album, setAlbum] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
 
   const downloadMutation = useMutation({
     mutationFn: async (params: {
@@ -115,20 +178,38 @@ function DownloadForm({
       title: string;
       artist: string;
       album?: string;
+      startTime?: number;
+      endTime?: number;
     }) => {
-      const [result, thumbnailData] = await Promise.all([
-        rpc.downloadFormat({
-          videoId: data.video.youtubeId,
-          itag: params.itag,
-        }),
-        rpc.fetchThumbnail({
-          videoId: data.video.youtubeId,
-        }),
-      ]);
+      const videoId = data.video.youtubeId;
+      const hasTrim =
+        params.startTime !== undefined || params.endTime !== undefined;
 
       const workerRpc = await initWorkerRpc();
+
+      let webmData: ArrayBuffer;
+      if (hasTrim) {
+        // Fast-seek: download only the needed byte ranges
+        webmData = await downloadFastSeek({
+          rpc,
+          workerRpc,
+          videoId,
+          itag: params.itag,
+          startTime: params.startTime ?? 0,
+          endTime: params.endTime ?? data.video.duration,
+        });
+      } else {
+        const result = await rpc.downloadFormat({
+          videoId,
+          itag: params.itag,
+        });
+        webmData = result.data;
+      }
+
+      const thumbnailData = await rpc.fetchThumbnail({ videoId });
+
       const opusData = await workerRpc.convertWebmToOpus({
-        webmData: result.data,
+        webmData,
         metadata: {
           title: params.title,
           artist: params.artist,
@@ -211,6 +292,31 @@ function DownloadForm({
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">Start time</label>
+          <input
+            type="text"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            disabled={downloadMutation.isPending}
+            placeholder="0:00"
+            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">End time</label>
+          <input
+            type="text"
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+            disabled={downloadMutation.isPending}
+            placeholder="0:00"
+            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+      </div>
+
       {audioFormats.length === 0 ? (
         <p className="text-sm text-red-500">No audio formats available.</p>
       ) : (
@@ -239,6 +345,8 @@ function DownloadForm({
                 title,
                 artist,
                 album: album || undefined,
+                startTime: startTime ? parseTime(startTime) : undefined,
+                endTime: endTime ? parseTime(endTime) : undefined,
               })
             }
             disabled={downloadMutation.isPending || downloadMutation.isSuccess}

@@ -1,3 +1,4 @@
+import type { SimpleMetadata } from "@hiogawa/ffmpeg/build/tsc/cpp/ex01-emscripten-types";
 import {
   BlobSource,
   BufferTarget,
@@ -8,6 +9,7 @@ import {
   WEBM,
 } from "mediabunny";
 import type { MetadataTags } from "mediabunny";
+import { parseMetadata, remux } from "./lib/libwebm.ts";
 import type { RpcRequest, RpcResponse } from "./lib/rpc.ts";
 
 export const workerRpcHandlers = {
@@ -34,6 +36,25 @@ export const workerRpcHandlers = {
     await conversion.execute();
 
     return target.buffer!;
+  },
+
+  /** Parse WebM header to extract cue points for fast-seek. */
+  async parseWebmHeader(params: {
+    headerData: ArrayBuffer;
+  }): Promise<SimpleMetadata> {
+    return await parseMetadata(new Uint8Array(params.headerData));
+  },
+
+  /** Remux partial WebM data (header + selected clusters) into a valid WebM. */
+  async remuxWebm(params: {
+    metadataBuffer: ArrayBuffer;
+    frameBuffer: ArrayBuffer;
+  }): Promise<ArrayBuffer> {
+    const result = await remux(
+      new Uint8Array(params.metadataBuffer),
+      new Uint8Array(params.frameBuffer),
+    );
+    return result.buffer as ArrayBuffer;
   },
 };
 
