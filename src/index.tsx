@@ -12,8 +12,10 @@ import { initContentRpc } from "./content-rpc.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
   formatBytes,
+  formatDuration,
   formatLabel,
   isAudioOnly,
+  parseTime,
   parseVideoId,
 } from "./lib/youtube-utils.ts";
 import type { PlayerApiResult } from "./lib/youtube.ts";
@@ -108,6 +110,8 @@ function DownloadForm({
   const [title, setTitle] = useState(data.video.title);
   const [artist, setArtist] = useState(data.video.channelName);
   const [album, setAlbum] = useState("");
+  const [trimStart, setTrimStart] = useState("");
+  const [trimEnd, setTrimEnd] = useState("");
 
   const downloadMutation = useMutation({
     mutationFn: async (params: {
@@ -115,15 +119,25 @@ function DownloadForm({
       title: string;
       artist: string;
       album?: string;
+      startTimeMs?: number;
+      endTimeMs?: number;
     }) => {
+      const videoId = data.video.youtubeId;
+      const useFastSeek =
+        params.startTimeMs !== undefined && params.endTimeMs !== undefined;
+
+      const downloadPromise = useFastSeek
+        ? rpc.downloadFormatFastSeek({
+            videoId,
+            itag: params.itag,
+            startTimeMs: params.startTimeMs!,
+            endTimeMs: params.endTimeMs!,
+          })
+        : rpc.downloadFormat({ videoId, itag: params.itag });
+
       const [result, thumbnailData] = await Promise.all([
-        rpc.downloadFormat({
-          videoId: data.video.youtubeId,
-          itag: params.itag,
-        }),
-        rpc.fetchThumbnail({
-          videoId: data.video.youtubeId,
-        }),
+        downloadPromise,
+        rpc.fetchThumbnail({ videoId }),
       ]);
 
       const workerRpc = await initWorkerRpc();
@@ -211,6 +225,38 @@ function DownloadForm({
         />
       </div>
 
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium">
+          Trim{" "}
+          <span className="font-normal text-muted-foreground">
+            (duration: {formatDuration(data.video.duration)})
+          </span>
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={trimStart}
+            onChange={(e) => setTrimStart(e.target.value)}
+            disabled={downloadMutation.isPending}
+            placeholder="Start (0:00)"
+            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+          />
+          <span className="text-muted-foreground">&ndash;</span>
+          <input
+            type="text"
+            value={trimEnd}
+            onChange={(e) => setTrimEnd(e.target.value)}
+            disabled={downloadMutation.isPending}
+            placeholder="End (0:00)"
+            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Leave empty for full file. Format: M:SS or H:MM:SS. Fast-seek skips
+          unneeded bytes.
+        </p>
+      </div>
+
       {audioFormats.length === 0 ? (
         <p className="text-sm text-red-500">No audio formats available.</p>
       ) : (
@@ -233,14 +279,21 @@ function DownloadForm({
 
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              const startTimeMs = parseTime(trimStart);
+              const endTimeMs = parseTime(trimEnd);
+              // Only use fast-seek if both times are specified
+              const hasTrim =
+                startTimeMs !== undefined && endTimeMs !== undefined;
               downloadMutation.mutate({
                 itag: selectedItag,
                 title,
                 artist,
                 album: album || undefined,
-              })
-            }
+                startTimeMs: hasTrim ? startTimeMs : undefined,
+                endTimeMs: hasTrim ? endTimeMs : undefined,
+              });
+            }}
             disabled={downloadMutation.isPending || downloadMutation.isSuccess}
             className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >

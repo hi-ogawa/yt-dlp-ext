@@ -110,4 +110,7 @@ This is lower priority than the core OPUS conversion feature. Implement after `2
 
 ## Status
 
-- [ ] Research complete, plan written
+- [x] Research complete, plan written
+- [x] Option B implemented: pure TS EBML parser + remuxer
+- [x] Trimming UI (start/end time fields)
+- [x] Fast-seek download integrated into content script RPC
