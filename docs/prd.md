@@ -15,12 +15,14 @@ Chrome extension for downloading YouTube audio directly from the browser. See [.
 ## TODO
 
 - [ ] feat: metadata fields — title/artist/album input before download
-- [ ] feat: WASM processing — FFmpeg WASM for WebM-to-OPUS conversion with metadata embedding
 - [ ] feat: thumbnail embedding — embed video thumbnail as album art
-- [ ] feat: trimming — libwebm WASM for fast-seek, start/end time UI
+- [ ] feat: WebM-to-OPUS conversion with metadata embedding — [task doc](./tasks/2026-03-25-process-audio-file.md)
+- [ ] feat: trimming — start/end time UI
+- [ ] feat: fast-seek download — skip unnecessary bytes when trimming — [task doc](./tasks/2026-03-25-fast-seek-download.md)
 - [ ] feat: download progress — show chunk progress during download
 - [ ] feat: popup action to auto-fill search
 - [ ] fix: fix inline theme script in `src/index.html`
+- [ ] test: looks bad now
 - [ ] refactor: type-safe rpc
 - [ ] refactor: react-query for async logic
 - [ ] chore: icon and logo

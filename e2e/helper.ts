@@ -3,6 +3,7 @@ import {
   test as baseTest,
   chromium,
   type BrowserContext,
+  type Page,
 } from "@playwright/test";
 
 // https://www.youtube.com/watch?v=bX1xq3cOFuA
@@ -37,3 +38,20 @@ export const test = baseTest.extend<{
     await use(serviceWorker.url().split("/")[2]);
   },
 });
+
+/** Surface browser errors on the Playwright CLI console */
+export function setupPageLogging(page: Page) {
+  page.on("console", (msg) => {
+    if (msg.type() === "error") {
+      console.log(`[browser:console.error] ${msg.text()}`);
+    }
+  });
+  page.on("pageerror", (err) => {
+    console.log(`[browser:pageerror] ${err}`);
+  });
+  page.on("requestfailed", (req) => {
+    console.log(
+      `[browser:requestfailed] ${req.url()} ${req.failure()?.errorText}`,
+    );
+  });
+}
