@@ -2,8 +2,10 @@
 
 ## TODO
 
-- [ ] chore: nest build under `dist/ext`, `dist/ext-dev`, `dist/yt-dlp-ext.zip`
-- [ ] chore: setup `.github`
+- [x] chore: nest build under `dist/ext`, `dist/ext-dev`, `dist/yt-dlp-ext.zip`
+- [x] chore: setup `.github`
+- [ ] fix: fix inline theme script in `src/index.html`
+- [ ] chore: icon and logo
 - [ ] chore: rework prd.md
 - [ ] chore: add architecture.md
 - [ ] chore: publish extension
