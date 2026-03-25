@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { fetchPlayerApi } from "../../src/lib/youtube.ts";
+import { fetchPlayerApi } from "../src/lib/youtube.ts";
+import { TEST_VIDEO_ID } from "./helper.ts";
 
-const TEST_VIDEO_ID = "bX1xq3cOFuA";
-
-test("fetchPlayerApi: metadata + streaming formats", async ({ page }) => {
-  await page.goto(`https://www.youtube.com/watch?v=${TEST_VIDEO_ID}`);
+// TODO: test downloading files
+test("fetchPlayerApi: metadata + streaming formats @yt", async ({ page }) => {
+  await page.goto(`https://www.youtube.com/watch?v=not-found`);
 
   const result = await page.evaluate(fetchPlayerApi, TEST_VIDEO_ID);
 

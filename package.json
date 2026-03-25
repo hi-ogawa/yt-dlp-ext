@@ -11,7 +11,7 @@
     "lint": "vp fmt && knip --fix",
     "lint-check": "vp fmt --check && knip",
     "test-e2e": "playwright test",
-    "test-youtube": "playwright test --config playwright.youtube.config.ts"
+    "test-e2e-ci": "playwright test --grep-invert='@yt'"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.91.3",

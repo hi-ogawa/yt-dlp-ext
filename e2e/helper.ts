@@ -5,6 +5,9 @@ import {
   type BrowserContext,
 } from "@playwright/test";
 
+// https://www.youtube.com/watch?v=bX1xq3cOFuA
+export const TEST_VIDEO_ID = "bX1xq3cOFuA";
+
 export const test = baseTest.extend<{
   context: BrowserContext;
   extensionId: string;

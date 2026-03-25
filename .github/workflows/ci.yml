@@ -40,7 +40,7 @@ jobs:
       - run: pnpm i
       - run: pnpm build
       - run: pnpm exec playwright install chromium --with-deps
-      - run: pnpm test-e2e
+      - run: pnpm test-e2e-ci
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
