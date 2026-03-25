@@ -23,9 +23,12 @@ export async function convertWebmToOpus(
     target,
     format: new OggOutputFormat(),
   });
-  output.setMetadataTags(metadata);
 
-  const conversion = await Conversion.init({ input, output });
+  const conversion = await Conversion.init({
+    input,
+    output,
+    tags: metadata,
+  });
   await conversion.execute();
 
   return target.buffer!;
