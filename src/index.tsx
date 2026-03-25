@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
+import { convertWebmToOpus } from "./lib/convert.ts";
 import { createIframeRpc, waitForIframeReady } from "./lib/iframe-rpc.ts";
 import { useTheme } from "./lib/theme.ts";
 import type { PlayerApiResult, YouTubeStreamingFormat } from "./lib/youtube.ts";
@@ -99,6 +100,7 @@ function DownloadPage({
       })) as PlayerApiResult;
       setData(result);
     } catch (err) {
+      console.error(err);
       toast.error(String(err));
     } finally {
       setSearching(false);
@@ -170,20 +172,27 @@ function DownloadForm({
         itag: selectedItag,
       })) as { data: ArrayBuffer; filename: string; size: number };
 
-      // Create blob and trigger download in extension page context
-      const blob = new Blob([result.data]);
+      // Convert WebM to OPUS with metadata
+      const opusData = await convertWebmToOpus(result.data, {
+        title: data.video.title,
+        artist: data.video.channelName,
+      });
+
+      const opusFilename = result.filename.replace(/\.\w+$/, ".opus");
+      const blob = new Blob([opusData]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = result.filename;
+      a.download = opusFilename;
       a.click();
       URL.revokeObjectURL(url);
 
       setDone(true);
       toast.success(
-        `Downloaded ${result.filename} (${formatBytes(result.size)})`,
+        `Downloaded ${opusFilename} (${formatBytes(opusData.byteLength)})`,
       );
     } catch (err) {
+      console.error(err);
       toast.error(String(err));
     } finally {
       setDownloading(false);

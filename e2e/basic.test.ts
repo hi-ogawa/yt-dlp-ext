@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { test, TEST_VIDEO_ID } from "./helper.ts";
+import { setupPageLogging, test, TEST_VIDEO_ID } from "./helper.ts";
 
 test("extension page renders with search form", async ({
   page,
@@ -20,6 +20,8 @@ test("invalid video ID shows error toast", async ({ page, extensionId }) => {
 });
 
 test("search video and download audio @yt", async ({ page, extensionId }) => {
+  setupPageLogging(page);
+
   await page.goto(`chrome-extension://${extensionId}/index.html`);
 
   // Wait for iframe content script to be ready
@@ -41,11 +43,11 @@ test("search video and download audio @yt", async ({ page, extensionId }) => {
   const firstOption = await options.first().textContent();
   expect(firstOption).toContain("audio/");
 
-  // Download
+  // Download + convert to OPUS
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toContain(".webm");
+  expect(download.suggestedFilename()).toContain(".opus");
 
   // Success toast
   await expect(page.getByText("Downloaded")).toBeVisible({ timeout: 60_000 });
