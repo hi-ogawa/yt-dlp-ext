@@ -1,15 +1,13 @@
 import type { RpcClient, RpcResponse } from "./lib/rpc.ts";
-import { createRpcProxy } from "./lib/rpc.ts";
+import { createRpcProxy, once } from "./lib/rpc.ts";
 import type { workerRpcHandlers } from "./worker.ts";
 import ConvertWorker from "./worker.ts?worker";
 
 type WorkerRpc = RpcClient<typeof workerRpcHandlers>;
 
-let workerRpcPromise: Promise<WorkerRpc> | undefined;
-
-export function initWorkerRpc(): Promise<WorkerRpc> {
-  if (!workerRpcPromise) {
-    workerRpcPromise = new Promise((resolve, reject) => {
+export const initWorkerRpc = once(
+  () =>
+    new Promise<WorkerRpc>((resolve, reject) => {
       const worker = new ConvertWorker();
 
       worker.addEventListener("error", (e) => {
@@ -25,10 +23,8 @@ export function initWorkerRpc(): Promise<WorkerRpc> {
         },
         { once: true },
       );
-    });
-  }
-  return workerRpcPromise;
-}
+    }),
+);
 
 function createWorkerRpc(worker: Worker): WorkerRpc {
   function call(method: string, params: unknown): Promise<unknown> {

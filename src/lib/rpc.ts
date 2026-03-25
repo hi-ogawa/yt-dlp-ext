@@ -39,3 +39,11 @@ export function createRpcProxy<Handlers>(
     },
   });
 }
+
+export function once<T>(fn: () => T): () => T {
+  let result: { value: T } | undefined;
+  return () => {
+    if (!result) result = { value: fn() };
+    return result.value;
+  };
+}

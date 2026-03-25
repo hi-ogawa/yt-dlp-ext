@@ -3,15 +3,13 @@
 
 import type { contentRpcHandlers } from "./content.ts";
 import type { RpcClient, RpcRequest, RpcResponse } from "./lib/rpc.ts";
-import { createRpcProxy } from "./lib/rpc.ts";
+import { createRpcProxy, once } from "./lib/rpc.ts";
 
 export type ContentRpc = RpcClient<typeof contentRpcHandlers>;
 
-let contentRpcPromise: Promise<ContentRpc> | undefined;
-
-export function initContentRpc(): Promise<ContentRpc> {
-  if (!contentRpcPromise) {
-    contentRpcPromise = new Promise((resolve, reject) => {
+export const initContentRpc = once(
+  () =>
+    new Promise<ContentRpc>((resolve, reject) => {
       const iframe = document.createElement("iframe");
       iframe.src = "https://www.youtube.com/embed/";
       iframe.style.display = "none";
@@ -31,10 +29,8 @@ export function initContentRpc(): Promise<ContentRpc> {
       );
 
       document.body.appendChild(iframe);
-    });
-  }
-  return contentRpcPromise;
-}
+    }),
+);
 
 function createIframeRpc(iframe: HTMLIFrameElement): ContentRpc {
   function call(method: string, params: unknown): Promise<unknown> {
