@@ -46,6 +46,7 @@ function isAudioOnly(f: YouTubeStreamingFormat): boolean {
 
 // --- Iframe + RPC hook ---
 
+// TOOD: refactor
 function useIframeRpc() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
@@ -109,6 +110,7 @@ function DownloadPage({
 
   return (
     <div className="mx-auto max-w-lg space-y-4 p-6">
+      {/* TODO: layout shift */}
       {!ready && (
         <p className="text-sm text-muted-foreground">
           Connecting to YouTube...
