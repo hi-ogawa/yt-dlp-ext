@@ -1,8 +1,9 @@
-import { StrictMode, useEffect, useRef, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import { convertWebmToOpus } from "./lib/convert.ts";
-import { createIframeRpc, waitForIframeReady } from "./lib/iframe-rpc.ts";
+import type { IframeRpc } from "./lib/iframe-rpc.ts";
+import { initIframeRpc } from "./lib/iframe-rpc.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
   formatBytes,
@@ -13,50 +14,32 @@ import {
 import type { PlayerApiResult } from "./lib/youtube.ts";
 import "./styles.css";
 
-// --- Iframe + RPC hook ---
-
-// TOOD: refactor
 function useIframeRpc() {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [ready, setReady] = useState(false);
-  const rpcRef = useRef<ReturnType<typeof createIframeRpc>>(undefined);
+  const [rpc, setRpc] = useState<IframeRpc>();
 
   useEffect(() => {
     let cancelled = false;
-    waitForIframeReady().then(() => {
+    initIframeRpc().then((rpc) => {
       if (cancelled) return;
-      if (iframeRef.current) {
-        rpcRef.current = createIframeRpc(iframeRef.current);
-      }
-      setReady(true);
+      setRpc(rpc);
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return { iframeRef, ready, rpc: rpcRef };
+  return rpc;
 }
 
 // --- Components ---
 
-function DownloadPage({
-  rpc,
-  ready,
-}: {
-  rpc: React.RefObject<ReturnType<typeof createIframeRpc> | undefined>;
-  ready: boolean;
-}) {
+function DownloadPage({ rpc }: { rpc: IframeRpc }) {
   const [input, setInput] = useState("");
   const [data, setData] = useState<PlayerApiResult>();
   const [searching, setSearching] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rpc.current) {
-      toast.error("Content script not ready");
-      return;
-    }
     const videoId = parseVideoId(input);
     if (!videoId) {
       toast.error("Invalid video ID or URL");
@@ -65,7 +48,7 @@ function DownloadPage({
     setSearching(true);
     setData(undefined);
     try {
-      const result = (await rpc.current.getStreamingFormats({
+      const result = (await rpc.getStreamingFormats({
         videoId,
       })) as PlayerApiResult;
       setData(result);
@@ -79,12 +62,6 @@ function DownloadPage({
 
   return (
     <div className="mx-auto max-w-lg space-y-4 p-6">
-      {/* TODO: layout shift */}
-      {!ready && (
-        <p className="text-sm text-muted-foreground">
-          Connecting to YouTube...
-        </p>
-      )}
       <form onSubmit={handleSearch} className="space-y-3">
         <div className="space-y-1.5">
           <label className="block text-sm font-medium">Video ID</label>
@@ -98,7 +75,7 @@ function DownloadPage({
         </div>
         <button
           type="submit"
-          disabled={searching || !ready}
+          disabled={searching}
           className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {searching ? "Searching..." : "Search"}
@@ -120,7 +97,7 @@ function DownloadForm({
   rpc,
 }: {
   data: PlayerApiResult;
-  rpc: React.RefObject<ReturnType<typeof createIframeRpc> | undefined>;
+  rpc: IframeRpc;
 }) {
   const audioFormats = data.streamingFormats
     .filter(isAudioOnly)
@@ -137,17 +114,16 @@ function DownloadForm({
   const [done, setDone] = useState(false);
 
   const handleDownload = async () => {
-    if (!rpc.current) return;
     setDownloading(true);
     setDone(false);
     try {
       // Download audio + fetch thumbnail in parallel
       const [result, thumbnailData] = await Promise.all([
-        rpc.current.downloadFormat({
+        rpc.downloadFormat({
           videoId: data.video.youtubeId,
           itag: selectedItag,
         }) as Promise<{ data: ArrayBuffer; filename: string; size: number }>,
-        rpc.current.fetchThumbnail({
+        rpc.fetchThumbnail({
           videoId: data.video.youtubeId,
         }) as Promise<ArrayBuffer>,
       ]);
@@ -274,20 +250,20 @@ function DownloadForm({
 
 function App() {
   useTheme();
-  const { iframeRef, ready, rpc } = useIframeRpc();
+  const rpc = useIframeRpc();
 
   return (
     <div className="min-h-screen">
       <header className="flex h-10 items-center border-b px-3">
         <span className="text-sm font-semibold">yt-dlp-ext</span>
       </header>
-      {/* Hidden YouTube embed iframe — content script injects here */}
-      <iframe
-        ref={iframeRef}
-        src="https://www.youtube.com/embed/"
-        style={{ display: "none" }}
-      />
-      <DownloadPage rpc={rpc} ready={ready} />
+      {rpc ? (
+        <DownloadPage rpc={rpc} />
+      ) : (
+        <p className="p-6 text-sm text-muted-foreground">
+          Connecting to YouTube...
+        </p>
+      )}
       <Toaster position="top-right" richColors />
     </div>
   );

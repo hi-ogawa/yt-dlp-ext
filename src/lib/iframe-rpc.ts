@@ -15,7 +15,30 @@ interface RpcResponse {
   error?: string;
 }
 
-export function createIframeRpc(iframe: HTMLIFrameElement) {
+const IFRAME_ID = "yt-embed";
+
+export type IframeRpc = ReturnType<typeof createIframeRpc>;
+
+/** Wait for the content script to signal readiness, then create the RPC client. */
+export function initIframeRpc(): Promise<IframeRpc> {
+  return new Promise((resolve) => {
+    const ac = new AbortController();
+    window.addEventListener(
+      "message",
+      (e: MessageEvent) => {
+        if (e.data?.type === "ytdl-ready") {
+          ac.abort();
+          resolve(createIframeRpc());
+        }
+      },
+      { signal: ac.signal },
+    );
+  });
+}
+
+function createIframeRpc() {
+  const iframe = document.getElementById(IFRAME_ID) as HTMLIFrameElement;
+
   function call(method: string, params?: unknown): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const id = crypto.randomUUID();
@@ -51,21 +74,4 @@ export function createIframeRpc(iframe: HTMLIFrameElement) {
     fetchThumbnail: (params: { videoId: string }) =>
       call("fetchThumbnail", params),
   };
-}
-
-/** Wait for the content script inside the iframe to signal readiness. */
-export function waitForIframeReady(): Promise<void> {
-  return new Promise((resolve) => {
-    const ac = new AbortController();
-    window.addEventListener(
-      "message",
-      (e: MessageEvent) => {
-        if (e.data?.type === "ytdl-ready") {
-          ac.abort();
-          resolve();
-        }
-      },
-      { signal: ac.signal },
-    );
-  });
 }
