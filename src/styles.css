@@ -1,0 +1,57 @@
+@import "tailwindcss" source(".");
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+:root {
+  --background: #fff;
+  --foreground: #0f0f0f;
+  --primary: #0f0f0f;
+  --primary-hover: #272727;
+  --primary-foreground: #fff;
+  --muted: #f2f2f2;
+  --muted-foreground: #606060;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #065fd4;
+}
+
+.dark {
+  --background: #0f0f0f;
+  --foreground: #f1f1f1;
+  --primary: #f1f1f1;
+  --primary-hover: #ddd;
+  --primary-foreground: #0f0f0f;
+  --muted: #272727;
+  --muted-foreground: #aaa;
+  --border: #3f3f3f;
+  --input: #3f3f3f;
+  --ring: #3ea6ff;
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--color-border);
+    scrollbar-color: var(--color-muted) transparent;
+  }
+
+  body {
+    font-family: "Roboto", "Arial", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+}
