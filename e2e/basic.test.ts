@@ -24,11 +24,6 @@ test("search video and download audio @yt", async ({ page, extensionId }) => {
 
   await page.goto(`chrome-extension://${extensionId}/index.html`);
 
-  // Wait for iframe content script to be ready
-  await expect(page.getByText("Connecting to YouTube...")).not.toBeVisible({
-    timeout: 15_000,
-  });
-
   // Search for video
   await page.getByPlaceholder("ID or URL").fill(TEST_VIDEO_ID);
   await page.getByRole("button", { name: "Search" }).click();

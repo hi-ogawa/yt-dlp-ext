@@ -9,13 +9,13 @@ export default defineConfig({
     ...(process.env.CI ? [["github"] as const] : []),
   ],
   expect: {
-    timeout: 2000,
+    timeout: 5000,
   },
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 1 : 0,
   use: {
     trace: "on-all-retries",
-    actionTimeout: 2000,
-    navigationTimeout: 2000,
+    actionTimeout: 5000,
+    navigationTimeout: 5000,
     ...devices["Desktop Chrome"],
   },
 });

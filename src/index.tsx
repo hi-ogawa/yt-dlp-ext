@@ -1,120 +1,61 @@
-import { StrictMode, useEffect, useRef, useState } from "react";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useMutation,
+  useQuery,
+} from "@tanstack/react-query";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
-import { convertWebmToOpus } from "./lib/convert.ts";
-import { createIframeRpc, waitForIframeReady } from "./lib/iframe-rpc.ts";
+import type { ContentRpc } from "./content-rpc.ts";
+import { initContentRpc } from "./content-rpc.ts";
 import { useTheme } from "./lib/theme.ts";
-import type { PlayerApiResult, YouTubeStreamingFormat } from "./lib/youtube.ts";
+import {
+  formatBytes,
+  formatLabel,
+  isAudioOnly,
+  parseVideoId,
+} from "./lib/youtube-utils.ts";
+import type { PlayerApiResult } from "./lib/youtube.ts";
+import { initWorkerRpc } from "./worker-rpc.ts";
 import "./styles.css";
 
-// --- Video ID parsing ---
-
-function parseVideoId(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (trimmed.length === 11 && /^[\w-]+$/.test(trimmed)) return trimmed;
-  if (trimmed.match(/youtube\.com|youtu\.be/)) {
-    try {
-      const url = new URL(trimmed);
-      if (url.hostname === "youtu.be") return url.pathname.substring(1);
-      return url.searchParams.get("v") ?? undefined;
-    } catch {}
-  }
-  return undefined;
-}
-
-// --- Format helpers ---
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatLabel(f: YouTubeStreamingFormat): string {
-  const mime = f.mimeType.split(";")[0];
-  const codec = f.mimeType.split(";")[1]?.trim() ?? "";
-  const size = f.contentLength ? formatBytes(f.contentLength) : "unknown size";
-  if (f.width && f.height) {
-    return `${mime} ${f.width}x${f.height} ${codec} (${size})`;
-  }
-  return `${mime} ${codec} (${size})`;
-}
-
-function isAudioOnly(f: YouTubeStreamingFormat): boolean {
-  return f.mimeType.startsWith("audio/");
-}
-
-// --- Iframe + RPC hook ---
-
-function useIframeRpc() {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [ready, setReady] = useState(false);
-  const rpcRef = useRef<ReturnType<typeof createIframeRpc>>(undefined);
-
-  useEffect(() => {
-    let cancelled = false;
-    waitForIframeReady().then(() => {
-      if (cancelled) return;
-      if (iframeRef.current) {
-        rpcRef.current = createIframeRpc(iframeRef.current);
-      }
-      setReady(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return { iframeRef, ready, rpc: rpcRef };
-}
+const queryClient = new QueryClient();
 
 // --- Components ---
 
-function DownloadPage({
-  rpc,
-  ready,
-}: {
-  rpc: React.RefObject<ReturnType<typeof createIframeRpc> | undefined>;
-  ready: boolean;
-}) {
-  const [input, setInput] = useState("");
-  const [data, setData] = useState<PlayerApiResult>();
-  const [searching, setSearching] = useState(false);
+function DownloadPage() {
+  const rpcQuery = useQuery({
+    queryKey: ["iframe-rpc"],
+    queryFn: initContentRpc,
+    staleTime: Infinity,
+  });
+  const rpc = rpcQuery.data!;
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rpc.current) {
-      toast.error("Content script not ready");
-      return;
-    }
-    const videoId = parseVideoId(input);
-    if (!videoId) {
-      toast.error("Invalid video ID or URL");
-      return;
-    }
-    setSearching(true);
-    setData(undefined);
-    try {
-      const result = (await rpc.current.getStreamingFormats({
-        videoId,
-      })) as PlayerApiResult;
-      setData(result);
-    } catch (err) {
+  const [input, setInput] = useState("");
+
+  const searchMutation = useMutation({
+    mutationFn: (videoId: string) => rpc.getStreamingFormats({ videoId }),
+    onError: (err) => {
       console.error(err);
       toast.error(String(err));
-    } finally {
-      setSearching(false);
-    }
-  };
+    },
+  });
 
   return (
     <div className="mx-auto max-w-lg space-y-4 p-6">
-      {!ready && (
-        <p className="text-sm text-muted-foreground">
-          Connecting to YouTube...
-        </p>
-      )}
-      <form onSubmit={handleSearch} className="space-y-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const videoId = parseVideoId(input);
+          if (!videoId) {
+            toast.error("Invalid video ID or URL");
+            return;
+          }
+          searchMutation.mutate(videoId);
+        }}
+        className="space-y-3"
+      >
         <div className="space-y-1.5">
           <label className="block text-sm font-medium">Video ID</label>
           <input
@@ -122,22 +63,27 @@ function DownloadPage({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="ID or URL"
+            disabled={!rpcQuery.isSuccess}
             className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
           />
         </div>
         <button
           type="submit"
-          disabled={searching || !ready}
+          disabled={!rpcQuery.isSuccess || searchMutation.isPending}
           className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {searching ? "Searching..." : "Search"}
+          {searchMutation.isPending ? "Searching..." : "Search"}
         </button>
       </form>
 
-      {data && (
+      {rpcQuery.isError && (
+        <p className="text-sm text-red-500">Failed to connect to YouTube.</p>
+      )}
+
+      {searchMutation.isSuccess && (
         <>
           <div className="border-t pt-4" />
-          <DownloadForm data={data} rpc={rpc} />
+          <DownloadForm data={searchMutation.data} rpc={rpc} />
         </>
       )}
     </div>
@@ -149,7 +95,7 @@ function DownloadForm({
   rpc,
 }: {
   data: PlayerApiResult;
-  rpc: React.RefObject<ReturnType<typeof createIframeRpc> | undefined>;
+  rpc: ContentRpc;
 }) {
   const audioFormats = data.streamingFormats
     .filter(isAudioOnly)
@@ -162,40 +108,42 @@ function DownloadForm({
   const [title, setTitle] = useState(data.video.title);
   const [artist, setArtist] = useState(data.video.channelName);
   const [album, setAlbum] = useState("");
-  const [downloading, setDownloading] = useState(false);
-  const [done, setDone] = useState(false);
 
-  const handleDownload = async () => {
-    if (!rpc.current) return;
-    setDownloading(true);
-    setDone(false);
-    try {
-      // Download audio + fetch thumbnail in parallel
+  const downloadMutation = useMutation({
+    mutationFn: async (params: {
+      itag: number;
+      title: string;
+      artist: string;
+      album?: string;
+    }) => {
       const [result, thumbnailData] = await Promise.all([
-        rpc.current.downloadFormat({
+        rpc.downloadFormat({
           videoId: data.video.youtubeId,
-          itag: selectedItag,
-        }) as Promise<{ data: ArrayBuffer; filename: string; size: number }>,
-        rpc.current.fetchThumbnail({
+          itag: params.itag,
+        }),
+        rpc.fetchThumbnail({
           videoId: data.video.youtubeId,
-        }) as Promise<ArrayBuffer>,
+        }),
       ]);
 
-      // Convert WebM to OPUS with metadata + thumbnail
-      const opusData = await convertWebmToOpus(result.data, {
-        title,
-        artist,
-        album: album || undefined,
-        images: [
-          {
-            data: new Uint8Array(thumbnailData),
-            mimeType: "image/jpeg",
-            kind: "coverFront",
-          },
-        ],
+      const workerRpc = await initWorkerRpc();
+      const opusData = await workerRpc.convertWebmToOpus({
+        webmData: result.data,
+        metadata: {
+          title: params.title,
+          artist: params.artist,
+          album: params.album,
+          images: [
+            {
+              data: new Uint8Array(thumbnailData),
+              mimeType: "image/jpeg",
+              kind: "coverFront",
+            },
+          ],
+        },
       });
 
-      const opusFilename = `${title}.opus`;
+      const opusFilename = `${params.title}.opus`;
       const blob = new Blob([opusData]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -204,17 +152,15 @@ function DownloadForm({
       a.click();
       URL.revokeObjectURL(url);
 
-      setDone(true);
       toast.success(
         `Downloaded ${opusFilename} (${formatBytes(opusData.byteLength)})`,
       );
-    } catch (err) {
+    },
+    onError: (err) => {
       console.error(err);
       toast.error(String(err));
-    } finally {
-      setDownloading(false);
-    }
-  };
+    },
+  });
 
   return (
     <div className="space-y-4">
@@ -237,7 +183,7 @@ function DownloadForm({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          disabled={downloading}
+          disabled={downloadMutation.isPending}
           className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
         />
       </div>
@@ -248,7 +194,7 @@ function DownloadForm({
           type="text"
           value={artist}
           onChange={(e) => setArtist(e.target.value)}
-          disabled={downloading}
+          disabled={downloadMutation.isPending}
           className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
         />
       </div>
@@ -259,7 +205,7 @@ function DownloadForm({
           type="text"
           value={album}
           onChange={(e) => setAlbum(e.target.value)}
-          disabled={downloading}
+          disabled={downloadMutation.isPending}
           placeholder="(optional)"
           className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
         />
@@ -274,7 +220,7 @@ function DownloadForm({
             <select
               value={selectedItag}
               onChange={(e) => setSelectedItag(Number(e.target.value))}
-              disabled={downloading}
+              disabled={downloadMutation.isPending}
               className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
             >
               {audioFormats.map((f) => (
@@ -287,13 +233,22 @@ function DownloadForm({
 
           <button
             type="button"
-            onClick={handleDownload}
-            disabled={downloading || done}
+            onClick={() =>
+              downloadMutation.mutate({
+                itag: selectedItag,
+                title,
+                artist,
+                album: album || undefined,
+              })
+            }
+            disabled={downloadMutation.isPending || downloadMutation.isSuccess}
             className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {!downloading && !done && "Download"}
-            {downloading && "Downloading..."}
-            {done && "Done"}
+            {downloadMutation.isPending
+              ? "Downloading..."
+              : downloadMutation.isSuccess
+                ? "Done"
+                : "Download"}
           </button>
         </>
       )}
@@ -303,20 +258,13 @@ function DownloadForm({
 
 function App() {
   useTheme();
-  const { iframeRef, ready, rpc } = useIframeRpc();
 
   return (
     <div className="min-h-screen">
       <header className="flex h-10 items-center border-b px-3">
         <span className="text-sm font-semibold">yt-dlp-ext</span>
       </header>
-      {/* Hidden YouTube embed iframe — content script injects here */}
-      <iframe
-        ref={iframeRef}
-        src="https://www.youtube.com/embed/"
-        style={{ display: "none" }}
-      />
-      <DownloadPage rpc={rpc} ready={ready} />
+      <DownloadPage />
       <Toaster position="top-right" richColors />
     </div>
   );
@@ -324,6 +272,8 @@ function App() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
   </StrictMode>,
 );

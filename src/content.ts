@@ -2,94 +2,70 @@
 // Injected into YouTube embed iframe inside the extension page.
 // Handles postMessage RPC: fetchPlayerApi + chunked download.
 
-import type { PlayerApiResult, YouTubeStreamingFormat } from "./lib/youtube.ts";
+import type { RpcRequest, RpcResponse } from "./lib/rpc.ts";
+import type { YouTubeStreamingFormat } from "./lib/youtube.ts";
 import { fetchPlayerApi } from "./lib/youtube.ts";
 
 declare const __BUILD_TIME__: string;
 declare const __GIT_REV__: string;
 console.log(`[yt-dlp-ext] build: ${__BUILD_TIME__} (${__GIT_REV__})`);
 
-// --- RPC types ---
-
-interface RpcRequest {
-  type: "ytdl-request";
-  id: string;
-  method: string;
-  params: unknown;
-}
-
-interface RpcResponse {
-  type: "ytdl-response";
-  id: string;
-  result?: unknown;
-  error?: string;
-}
-
 // --- RPC handlers ---
+// Exported for typeof only — content script is a separate bundle,
+// so this import is type-only and doesn't pull in runtime code.
 
-async function getStreamingFormats(params: {
-  videoId: string;
-}): Promise<PlayerApiResult> {
-  return await fetchPlayerApi(params.videoId);
-}
+export const contentRpcHandlers = {
+  async getStreamingFormats(params: { videoId: string }) {
+    return await fetchPlayerApi(params.videoId);
+  },
 
-async function downloadFormat(params: {
-  videoId: string;
-  itag: number;
-}): Promise<{ data: ArrayBuffer; filename: string; size: number }> {
-  const result = await fetchPlayerApi(params.videoId);
-  const format = result.streamingFormats.find(
-    (f: YouTubeStreamingFormat) => f.itag === params.itag,
-  );
-  if (!format) throw new Error(`Format itag ${params.itag} not found`);
-  const filesize = format.contentLength;
-  if (!filesize) throw new Error("Unknown file size");
+  async downloadFormat(params: { videoId: string; itag: number }) {
+    const result = await fetchPlayerApi(params.videoId);
+    const format = result.streamingFormats.find(
+      (f: YouTubeStreamingFormat) => f.itag === params.itag,
+    );
+    if (!format) throw new Error(`Format itag ${params.itag} not found`);
+    const filesize = format.contentLength;
+    if (!filesize) throw new Error("Unknown file size");
 
-  const CHUNK_SIZE = 5_000_000;
-  const numChunks = Math.ceil(filesize / CHUNK_SIZE);
-  const data = new Uint8Array(filesize);
-  let offset = 0;
+    const CHUNK_SIZE = 5_000_000;
+    const numChunks = Math.ceil(filesize / CHUNK_SIZE);
+    const data = new Uint8Array(filesize);
+    let offset = 0;
 
-  for (let i = 0; i < numChunks; i++) {
-    const start = CHUNK_SIZE * i;
-    const end = Math.min(CHUNK_SIZE * (i + 1), filesize);
-    const res = await fetch(format.url, {
-      headers: { range: `bytes=${start}-${end - 1}` },
-    });
-    if (!res.ok && res.status !== 206) {
-      throw new Error(`Download failed: ${res.status}`);
+    for (let i = 0; i < numChunks; i++) {
+      const start = CHUNK_SIZE * i;
+      const end = Math.min(CHUNK_SIZE * (i + 1), filesize);
+      const res = await fetch(format.url, {
+        headers: { range: `bytes=${start}-${end - 1}` },
+      });
+      if (!res.ok && res.status !== 206) {
+        throw new Error(`Download failed: ${res.status}`);
+      }
+      if (!res.body) throw new Error("No response body");
+      const reader = res.body.getReader();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        data.set(value, offset);
+        offset += value.length;
+      }
     }
-    if (!res.body) throw new Error("No response body");
-    const reader = res.body.getReader();
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      data.set(value, offset);
-      offset += value.length;
-    }
-  }
 
-  const ext = format.mimeType.split(";")[0]?.split("/")[1] ?? "webm";
-  const filename = `${result.video.title}.${ext}`;
+    const ext = format.mimeType.split(";")[0]?.split("/")[1] ?? "webm";
+    const filename = `${result.video.title}.${ext}`;
 
-  // Transfer the ArrayBuffer back (zero-copy)
-  return { data: data.buffer as ArrayBuffer, filename, size: filesize };
-}
+    // Transfer the ArrayBuffer back (zero-copy)
+    return { data: data.buffer as ArrayBuffer, filename, size: filesize };
+  },
 
-async function fetchThumbnail(params: {
-  videoId: string;
-}): Promise<ArrayBuffer> {
-  const res = await fetch(
-    `https://i.ytimg.com/vi/${params.videoId}/hqdefault.jpg`,
-  );
-  if (!res.ok) throw new Error(`Thumbnail fetch failed: ${res.status}`);
-  return await res.arrayBuffer();
-}
-
-const handlers: Record<string, (params: never) => Promise<unknown>> = {
-  getStreamingFormats,
-  downloadFormat,
-  fetchThumbnail,
+  async fetchThumbnail(params: { videoId: string }) {
+    const res = await fetch(
+      `https://i.ytimg.com/vi/${params.videoId}/hqdefault.jpg`,
+    );
+    if (!res.ok) throw new Error(`Thumbnail fetch failed: ${res.status}`);
+    return await res.arrayBuffer();
+  },
 };
 
 // --- postMessage listener ---
@@ -99,7 +75,7 @@ window.addEventListener("message", async (e: MessageEvent) => {
   if (msg?.type !== "ytdl-request") return;
 
   const { id, method, params } = msg;
-  const handler = handlers[method];
+  const handler = contentRpcHandlers[method as keyof typeof contentRpcHandlers];
   if (!handler) {
     const response: RpcResponse = {
       type: "ytdl-response",
