@@ -10,7 +10,8 @@
     "tsc": "tsc -b",
     "lint": "vp fmt && knip --fix",
     "lint-check": "vp fmt --check && knip",
-    "test-e2e": "playwright test"
+    "test-e2e": "playwright test",
+    "test-youtube": "playwright test --config playwright.youtube.config.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.91.3",
