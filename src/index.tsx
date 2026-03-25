@@ -254,8 +254,12 @@ function App() {
       <header className="flex h-10 items-center border-b px-3">
         <span className="text-sm font-semibold">yt-dlp-ext</span>
       </header>
-      {rpcQuery.data ? (
+      {rpcQuery.isSuccess ? (
         <DownloadPage rpc={rpcQuery.data} />
+      ) : rpcQuery.isError ? (
+        <p className="p-6 text-sm text-red-500">
+          Failed to connect to YouTube.
+        </p>
       ) : (
         <p className="p-6 text-sm text-muted-foreground">
           Connecting to YouTube...
