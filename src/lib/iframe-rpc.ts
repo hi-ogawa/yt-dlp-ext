@@ -48,6 +48,8 @@ export function createIframeRpc(iframe: HTMLIFrameElement) {
       call("getStreamingFormats", params),
     downloadFormat: (params: { videoId: string; itag: number }) =>
       call("downloadFormat", params),
+    fetchThumbnail: (params: { videoId: string }) =>
+      call("fetchThumbnail", params),
   };
 }
 

@@ -159,6 +159,9 @@ function DownloadForm({
   const [selectedItag, setSelectedItag] = useState<number>(
     audioFormats[0]?.itag ?? 0,
   );
+  const [title, setTitle] = useState(data.video.title);
+  const [artist, setArtist] = useState(data.video.channelName);
+  const [album, setAlbum] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -167,18 +170,32 @@ function DownloadForm({
     setDownloading(true);
     setDone(false);
     try {
-      const result = (await rpc.current.downloadFormat({
-        videoId: data.video.youtubeId,
-        itag: selectedItag,
-      })) as { data: ArrayBuffer; filename: string; size: number };
+      // Download audio + fetch thumbnail in parallel
+      const [result, thumbnailData] = await Promise.all([
+        rpc.current.downloadFormat({
+          videoId: data.video.youtubeId,
+          itag: selectedItag,
+        }) as Promise<{ data: ArrayBuffer; filename: string; size: number }>,
+        rpc.current.fetchThumbnail({
+          videoId: data.video.youtubeId,
+        }) as Promise<ArrayBuffer>,
+      ]);
 
-      // Convert WebM to OPUS with metadata
+      // Convert WebM to OPUS with metadata + thumbnail
       const opusData = await convertWebmToOpus(result.data, {
-        title: data.video.title,
-        artist: data.video.channelName,
+        title,
+        artist,
+        album: album || undefined,
+        images: [
+          {
+            data: new Uint8Array(thumbnailData),
+            mimeType: "image/jpeg",
+            kind: "coverFront",
+          },
+        ],
       });
 
-      const opusFilename = result.filename.replace(/\.\w+$/, ".opus");
+      const opusFilename = `${title}.opus`;
       const blob = new Blob([opusData]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -213,6 +230,40 @@ function DownloadForm({
         alt=""
         className="w-full rounded"
       />
+
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium">Title</label>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          disabled={downloading}
+          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium">Artist</label>
+        <input
+          type="text"
+          value={artist}
+          onChange={(e) => setArtist(e.target.value)}
+          disabled={downloading}
+          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium">Album</label>
+        <input
+          type="text"
+          value={album}
+          onChange={(e) => setAlbum(e.target.value)}
+          disabled={downloading}
+          placeholder="(optional)"
+          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+        />
+      </div>
 
       {audioFormats.length === 0 ? (
         <p className="text-sm text-red-500">No audio formats available.</p>

@@ -76,9 +76,20 @@ async function downloadFormat(params: {
   return { data: data.buffer as ArrayBuffer, filename, size: filesize };
 }
 
+async function fetchThumbnail(params: {
+  videoId: string;
+}): Promise<ArrayBuffer> {
+  const res = await fetch(
+    `https://i.ytimg.com/vi/${params.videoId}/hqdefault.jpg`,
+  );
+  if (!res.ok) throw new Error(`Thumbnail fetch failed: ${res.status}`);
+  return await res.arrayBuffer();
+}
+
 const handlers: Record<string, (params: never) => Promise<unknown>> = {
   getStreamingFormats,
   downloadFormat,
+  fetchThumbnail,
 };
 
 // --- postMessage listener ---

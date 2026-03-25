@@ -1,35 +1,32 @@
-import {
-  BlobSource,
-  BufferTarget,
-  Conversion,
-  Input,
-  OggOutputFormat,
-  Output,
-  WEBM,
-} from "mediabunny";
 import type { MetadataTags } from "mediabunny";
+import type { ConvertRequest, ConvertResponse } from "./convert-worker.ts";
+import ConvertWorker from "./convert-worker.ts?worker";
+
+let worker: Worker | undefined;
+
+function getWorker(): Worker {
+  if (!worker) {
+    worker = new ConvertWorker();
+  }
+  return worker;
+}
 
 export async function convertWebmToOpus(
   webmData: ArrayBuffer,
   metadata: MetadataTags,
 ): Promise<ArrayBuffer> {
-  const input = new Input({
-    source: new BlobSource(new Blob([webmData])),
-    formats: [WEBM],
-  });
+  const w = getWorker();
 
-  const target = new BufferTarget();
-  const output = new Output({
-    target,
-    format: new OggOutputFormat(),
-  });
+  return new Promise((resolve, reject) => {
+    const handler = (e: MessageEvent<ConvertResponse>) => {
+      if (e.data.type !== "convert-result") return;
+      w.removeEventListener("message", handler);
+      if (e.data.error) reject(new Error(e.data.error));
+      else resolve(e.data.opusData!);
+    };
+    w.addEventListener("message", handler);
 
-  const conversion = await Conversion.init({
-    input,
-    output,
-    tags: metadata,
+    const request: ConvertRequest = { type: "convert", webmData, metadata };
+    w.postMessage(request, { transfer: [webmData] });
   });
-  await conversion.execute();
-
-  return target.buffer!;
 }
