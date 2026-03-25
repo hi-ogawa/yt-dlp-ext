@@ -97,29 +97,28 @@ function DownloadForm({
   const [title, setTitle] = useState(data.video.title);
   const [artist, setArtist] = useState(data.video.channelName);
   const [album, setAlbum] = useState("");
-  const [downloading, setDownloading] = useState(false);
-  const [done, setDone] = useState(false);
 
-  const handleDownload = async () => {
-    setDownloading(true);
-    setDone(false);
-    try {
-      // Download audio + fetch thumbnail in parallel
+  const download = useMutation({
+    mutationFn: async (params: {
+      itag: number;
+      title: string;
+      artist: string;
+      album?: string;
+    }) => {
       const [result, thumbnailData] = await Promise.all([
         rpc.downloadFormat({
           videoId: data.video.youtubeId,
-          itag: selectedItag,
+          itag: params.itag,
         }) as Promise<{ data: ArrayBuffer; filename: string; size: number }>,
         rpc.fetchThumbnail({
           videoId: data.video.youtubeId,
         }) as Promise<ArrayBuffer>,
       ]);
 
-      // Convert WebM to OPUS with metadata + thumbnail
       const opusData = await convertWebmToOpus(result.data, {
-        title,
-        artist,
-        album: album || undefined,
+        title: params.title,
+        artist: params.artist,
+        album: params.album,
         images: [
           {
             data: new Uint8Array(thumbnailData),
@@ -129,7 +128,7 @@ function DownloadForm({
         ],
       });
 
-      const opusFilename = `${title}.opus`;
+      const opusFilename = `${params.title}.opus`;
       const blob = new Blob([opusData]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -138,17 +137,15 @@ function DownloadForm({
       a.click();
       URL.revokeObjectURL(url);
 
-      setDone(true);
       toast.success(
         `Downloaded ${opusFilename} (${formatBytes(opusData.byteLength)})`,
       );
-    } catch (err) {
+    },
+    onError: (err) => {
       console.error(err);
       toast.error(String(err));
-    } finally {
-      setDownloading(false);
-    }
-  };
+    },
+  });
 
   return (
     <div className="space-y-4">
@@ -171,7 +168,7 @@ function DownloadForm({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          disabled={downloading}
+          disabled={download.isPending}
           className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
         />
       </div>
@@ -182,7 +179,7 @@ function DownloadForm({
           type="text"
           value={artist}
           onChange={(e) => setArtist(e.target.value)}
-          disabled={downloading}
+          disabled={download.isPending}
           className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
         />
       </div>
@@ -193,7 +190,7 @@ function DownloadForm({
           type="text"
           value={album}
           onChange={(e) => setAlbum(e.target.value)}
-          disabled={downloading}
+          disabled={download.isPending}
           placeholder="(optional)"
           className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
         />
@@ -208,7 +205,7 @@ function DownloadForm({
             <select
               value={selectedItag}
               onChange={(e) => setSelectedItag(Number(e.target.value))}
-              disabled={downloading}
+              disabled={download.isPending}
               className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
             >
               {audioFormats.map((f) => (
@@ -221,13 +218,22 @@ function DownloadForm({
 
           <button
             type="button"
-            onClick={handleDownload}
-            disabled={downloading || done}
+            onClick={() =>
+              download.mutate({
+                itag: selectedItag,
+                title,
+                artist,
+                album: album || undefined,
+              })
+            }
+            disabled={download.isPending || download.isSuccess}
             className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {!downloading && !done && "Download"}
-            {downloading && "Downloading..."}
-            {done && "Done"}
+            {download.isPending
+              ? "Downloading..."
+              : download.isSuccess
+                ? "Done"
+                : "Download"}
           </button>
         </>
       )}
