@@ -12,9 +12,10 @@
 
 ## Key Docs
 
-| File          | Purpose                        |
-| ------------- | ------------------------------ |
-| `docs/prd.md` | Product doc, features, roadmap |
+| File                              | Purpose                      |
+| --------------------------------- | ---------------------------- |
+| `docs/prd.md`                     | Task list, features, roadmap |
+| `docs/background/architecture.md` | Design decisions, data flow  |
 
 ## Architecture
 
