@@ -27,7 +27,7 @@ const queryClient = new QueryClient();
 function DownloadPage({ rpc }: { rpc: IframeRpc }) {
   const [input, setInput] = useState("");
 
-  const search = useMutation({
+  const searchMutation = useMutation({
     mutationFn: (videoId: string) =>
       rpc.getStreamingFormats({ videoId }) as Promise<PlayerApiResult>,
     onError: (err) => {
@@ -46,7 +46,7 @@ function DownloadPage({ rpc }: { rpc: IframeRpc }) {
             toast.error("Invalid video ID or URL");
             return;
           }
-          search.mutate(videoId);
+          searchMutation.mutate(videoId);
         }}
         className="space-y-3"
       >
@@ -62,17 +62,17 @@ function DownloadPage({ rpc }: { rpc: IframeRpc }) {
         </div>
         <button
           type="submit"
-          disabled={search.isPending}
+          disabled={searchMutation.isPending}
           className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {search.isPending ? "Searching..." : "Search"}
+          {searchMutation.isPending ? "Searching..." : "Search"}
         </button>
       </form>
 
-      {search.data && (
+      {searchMutation.isSuccess && (
         <>
           <div className="border-t pt-4" />
-          <DownloadForm data={search.data} rpc={rpc} />
+          <DownloadForm data={searchMutation.data} rpc={rpc} />
         </>
       )}
     </div>
@@ -98,7 +98,7 @@ function DownloadForm({
   const [artist, setArtist] = useState(data.video.channelName);
   const [album, setAlbum] = useState("");
 
-  const download = useMutation({
+  const downloadMutation = useMutation({
     mutationFn: async (params: {
       itag: number;
       title: string;
@@ -168,7 +168,7 @@ function DownloadForm({
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          disabled={download.isPending}
+          disabled={downloadMutation.isPending}
           className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
         />
       </div>
@@ -179,7 +179,7 @@ function DownloadForm({
           type="text"
           value={artist}
           onChange={(e) => setArtist(e.target.value)}
-          disabled={download.isPending}
+          disabled={downloadMutation.isPending}
           className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
         />
       </div>
@@ -190,7 +190,7 @@ function DownloadForm({
           type="text"
           value={album}
           onChange={(e) => setAlbum(e.target.value)}
-          disabled={download.isPending}
+          disabled={downloadMutation.isPending}
           placeholder="(optional)"
           className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
         />
@@ -205,7 +205,7 @@ function DownloadForm({
             <select
               value={selectedItag}
               onChange={(e) => setSelectedItag(Number(e.target.value))}
-              disabled={download.isPending}
+              disabled={downloadMutation.isPending}
               className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
             >
               {audioFormats.map((f) => (
@@ -219,19 +219,19 @@ function DownloadForm({
           <button
             type="button"
             onClick={() =>
-              download.mutate({
+              downloadMutation.mutate({
                 itag: selectedItag,
                 title,
                 artist,
                 album: album || undefined,
               })
             }
-            disabled={download.isPending || download.isSuccess}
+            disabled={downloadMutation.isPending || downloadMutation.isSuccess}
             className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {download.isPending
+            {downloadMutation.isPending
               ? "Downloading..."
-              : download.isSuccess
+              : downloadMutation.isSuccess
                 ? "Done"
                 : "Download"}
           </button>
@@ -243,7 +243,7 @@ function DownloadForm({
 
 function App() {
   useTheme();
-  const { data: rpc } = useQuery({
+  const rpcQuery = useQuery({
     queryKey: ["iframe-rpc"],
     queryFn: initIframeRpc,
     staleTime: Infinity,
@@ -254,8 +254,8 @@ function App() {
       <header className="flex h-10 items-center border-b px-3">
         <span className="text-sm font-semibold">yt-dlp-ext</span>
       </header>
-      {rpc ? (
-        <DownloadPage rpc={rpc} />
+      {rpcQuery.data ? (
+        <DownloadPage rpc={rpcQuery.data} />
       ) : (
         <p className="p-6 text-sm text-muted-foreground">
           Connecting to YouTube...
