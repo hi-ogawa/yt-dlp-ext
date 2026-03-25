@@ -8,7 +8,10 @@ Web app on Cloudflare Workers. Server proxies YouTube API calls and CDN range re
 
 **Broke when YouTube added POT** — server can't generate proof-of-origin tokens, only in-browser botguard JS can. This made the server proxy approach unreliable.
 
-Repo: `~/code/personal/youtube-dl-web-v2`
+Repo:
+
+- https://github.com/hi-ogawa/youtube-dl-web-v2
+- `~/code/personal/youtube-dl-web-v2`
 
 ## yt-dlp-gui
 
@@ -16,7 +19,10 @@ Electron desktop app. Spawns system `yt-dlp` + `ffmpeg` binaries for download an
 
 **Still works**, but not portable — can't run in a browser, needs yt-dlp and ffmpeg installed.
 
-Repo: `~/code/personal/yt-dlp-gui`
+Repo:
+
+- https://github.com/hi-ogawa/yt-dlp-gui
+- `~/code/personal/yt-dlp-gui`
 
 ## ytsub-v5 (Zamak)
 
@@ -28,7 +34,10 @@ Chrome extension + web app for language learning via YouTube subtitles. The down
 
 **Model for project organization**: yt-dlp-ext follows ytsub-v5's patterns for project setup (Vite + vite-plus, knip, Playwright e2e), extension structure (MV3, content script + background + extension page, multi-environment Vite build), UI (React 19, Tailwind 4, Radix, Lucide, Sonner, TanStack Query), docs (`AGENTS.md`, `docs/prd.md`, `docs/tasks/`), and conventions (kebab-case, `node` for scripts, lint-before-commit). When adding features, reference ytsub-v5 for established patterns.
 
-Repo: `~/code/personal/ytsub-v5`
+Repo:
+
+- https://github.com/hi-ogawa/ytsub-v5
+- `~/code/personal/ytsub-v5`
 
 ## yt-dlp-ext
 
