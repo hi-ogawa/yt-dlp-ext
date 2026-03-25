@@ -24,7 +24,14 @@ const queryClient = new QueryClient();
 
 // --- Components ---
 
-function DownloadPage({ rpc }: { rpc: ContentRpc }) {
+function DownloadPage() {
+  const rpcQuery = useQuery({
+    queryKey: ["iframe-rpc"],
+    queryFn: initContentRpc,
+    staleTime: Infinity,
+  });
+  const rpc = rpcQuery.data!;
+
   const [input, setInput] = useState("");
 
   const searchMutation = useMutation({
@@ -56,17 +63,22 @@ function DownloadPage({ rpc }: { rpc: ContentRpc }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="ID or URL"
+            disabled={!rpcQuery.isSuccess}
             className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
           />
         </div>
         <button
           type="submit"
-          disabled={searchMutation.isPending}
+          disabled={!rpcQuery.isSuccess || searchMutation.isPending}
           className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {searchMutation.isPending ? "Searching..." : "Search"}
         </button>
       </form>
+
+      {rpcQuery.isError && (
+        <p className="text-sm text-red-500">Failed to connect to YouTube.</p>
+      )}
 
       {searchMutation.isSuccess && (
         <>
@@ -246,28 +258,13 @@ function DownloadForm({
 
 function App() {
   useTheme();
-  const rpcQuery = useQuery({
-    queryKey: ["iframe-rpc"],
-    queryFn: initContentRpc,
-    staleTime: Infinity,
-  });
 
   return (
     <div className="min-h-screen">
       <header className="flex h-10 items-center border-b px-3">
         <span className="text-sm font-semibold">yt-dlp-ext</span>
       </header>
-      {rpcQuery.isSuccess ? (
-        <DownloadPage rpc={rpcQuery.data} />
-      ) : rpcQuery.isError ? (
-        <p className="p-6 text-sm text-red-500">
-          Failed to connect to YouTube.
-        </p>
-      ) : (
-        <p className="p-6 text-sm text-muted-foreground">
-          Connecting to YouTube...
-        </p>
-      )}
+      <DownloadPage />
       <Toaster position="top-right" richColors />
     </div>
   );
