@@ -12,8 +12,10 @@ import { initContentRpc } from "./content-rpc.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
   formatBytes,
+  formatDuration,
   formatLabel,
   isAudioOnly,
+  parseTime,
   parseVideoId,
 } from "./lib/youtube-utils.ts";
 import type { PlayerApiResult } from "./lib/youtube.ts";
@@ -108,6 +110,8 @@ function DownloadForm({
   const [title, setTitle] = useState(data.video.title);
   const [artist, setArtist] = useState(data.video.channelName);
   const [album, setAlbum] = useState("");
+  const [startTimeStr, setStartTimeStr] = useState("");
+  const [endTimeStr, setEndTimeStr] = useState("");
 
   const downloadMutation = useMutation({
     mutationFn: async (params: {
@@ -115,12 +119,26 @@ function DownloadForm({
       title: string;
       artist: string;
       album?: string;
+      startTime?: number;
+      endTime?: number;
     }) => {
+      const useFastSeek =
+        params.startTime !== undefined && params.endTime !== undefined;
+
+      const downloadPromise = useFastSeek
+        ? rpc.downloadFormatFastSeek({
+            videoId: data.video.youtubeId,
+            itag: params.itag,
+            startTime: params.startTime!,
+            endTime: params.endTime!,
+          })
+        : rpc.downloadFormat({
+            videoId: data.video.youtubeId,
+            itag: params.itag,
+          });
+
       const [result, thumbnailData] = await Promise.all([
-        rpc.downloadFormat({
-          videoId: data.video.youtubeId,
-          itag: params.itag,
-        }),
+        downloadPromise,
         rpc.fetchThumbnail({
           videoId: data.video.youtubeId,
         }),
@@ -211,6 +229,42 @@ function DownloadForm({
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">Start time</label>
+          <input
+            type="text"
+            value={startTimeStr}
+            onChange={(e) => setStartTimeStr(e.target.value)}
+            disabled={downloadMutation.isPending}
+            placeholder="0:00"
+            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium">
+            End time
+            {data.video.duration > 0 && (
+              <span className="ml-1 font-normal text-muted-foreground">
+                / {formatDuration(data.video.duration)}
+              </span>
+            )}
+          </label>
+          <input
+            type="text"
+            value={endTimeStr}
+            onChange={(e) => setEndTimeStr(e.target.value)}
+            disabled={downloadMutation.isPending}
+            placeholder={
+              data.video.duration > 0
+                ? formatDuration(data.video.duration)
+                : "m:ss"
+            }
+            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+      </div>
+
       {audioFormats.length === 0 ? (
         <p className="text-sm text-red-500">No audio formats available.</p>
       ) : (
@@ -233,14 +287,22 @@ function DownloadForm({
 
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              const startTime = parseTime(startTimeStr);
+              const endTime = parseTime(endTimeStr);
+              const useTrim =
+                startTime !== undefined &&
+                endTime !== undefined &&
+                startTime < endTime;
               downloadMutation.mutate({
                 itag: selectedItag,
                 title,
                 artist,
                 album: album || undefined,
-              })
-            }
+                startTime: useTrim ? startTime : undefined,
+                endTime: useTrim ? endTime : undefined,
+              });
+            }}
             disabled={downloadMutation.isPending || downloadMutation.isSuccess}
             className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
