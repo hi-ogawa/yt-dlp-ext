@@ -1,23 +1,13 @@
 // postMessage RPC client for communicating with the content script
 // inside a YouTube embed iframe.
 
-interface RpcRequest {
-  type: "ytdl-request";
-  id: string;
-  method: string;
-  params: unknown;
-}
-
-interface RpcResponse {
-  type: "ytdl-response";
-  id: string;
-  result?: unknown;
-  error?: string;
-}
+import type { contentRpcHandlers } from "../content.ts";
+import type { RpcClient, RpcRequest, RpcResponse } from "./rpc.ts";
+import { createRpcProxy } from "./rpc.ts";
 
 const IFRAME_ID = "yt-embed";
 
-export type IframeRpc = ReturnType<typeof createIframeRpc>;
+export type IframeRpc = RpcClient<typeof contentRpcHandlers>;
 
 /** Wait for the content script to signal readiness, then create the RPC client. */
 export function initIframeRpc(): Promise<IframeRpc> {
@@ -36,10 +26,10 @@ export function initIframeRpc(): Promise<IframeRpc> {
   });
 }
 
-function createIframeRpc() {
+function createIframeRpc(): IframeRpc {
   const iframe = document.getElementById(IFRAME_ID) as HTMLIFrameElement;
 
-  function call(method: string, params?: unknown): Promise<unknown> {
+  function call(method: string, params: unknown): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const id = crypto.randomUUID();
       const ac = new AbortController();
@@ -66,12 +56,5 @@ function createIframeRpc() {
     });
   }
 
-  return {
-    getStreamingFormats: (params: { videoId: string }) =>
-      call("getStreamingFormats", params),
-    downloadFormat: (params: { videoId: string; itag: number }) =>
-      call("downloadFormat", params),
-    fetchThumbnail: (params: { videoId: string }) =>
-      call("fetchThumbnail", params),
-  };
+  return createRpcProxy<typeof contentRpcHandlers>(call);
 }

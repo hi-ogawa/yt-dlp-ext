@@ -28,8 +28,7 @@ function DownloadPage({ rpc }: { rpc: IframeRpc }) {
   const [input, setInput] = useState("");
 
   const searchMutation = useMutation({
-    mutationFn: (videoId: string) =>
-      rpc.getStreamingFormats({ videoId }) as Promise<PlayerApiResult>,
+    mutationFn: (videoId: string) => rpc.getStreamingFormats({ videoId }),
     onError: (err) => {
       console.error(err);
       toast.error(String(err));
@@ -109,10 +108,10 @@ function DownloadForm({
         rpc.downloadFormat({
           videoId: data.video.youtubeId,
           itag: params.itag,
-        }) as Promise<{ data: ArrayBuffer; filename: string; size: number }>,
+        }),
         rpc.fetchThumbnail({
           videoId: data.video.youtubeId,
-        }) as Promise<ArrayBuffer>,
+        }),
       ]);
 
       const opusData = await convertWebmToOpus(result.data, {
