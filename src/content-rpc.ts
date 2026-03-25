@@ -1,16 +1,16 @@
 // postMessage RPC client for communicating with the content script
 // inside a YouTube embed iframe.
 
-import type { contentRpcHandlers } from "../content.ts";
-import type { RpcClient, RpcRequest, RpcResponse } from "./rpc.ts";
-import { createRpcProxy } from "./rpc.ts";
+import type { contentRpcHandlers } from "./content.ts";
+import type { RpcClient, RpcRequest, RpcResponse } from "./lib/rpc.ts";
+import { createRpcProxy } from "./lib/rpc.ts";
 
 const IFRAME_ID = "yt-embed";
 
-export type IframeRpc = RpcClient<typeof contentRpcHandlers>;
+export type ContentRpc = RpcClient<typeof contentRpcHandlers>;
 
 /** Wait for the content script to signal readiness, then create the RPC client. */
-export function initIframeRpc(): Promise<IframeRpc> {
+export function initContentRpc(): Promise<ContentRpc> {
   return new Promise((resolve) => {
     const ac = new AbortController();
     window.addEventListener(
@@ -18,7 +18,7 @@ export function initIframeRpc(): Promise<IframeRpc> {
       (e: MessageEvent) => {
         if (e.data?.type === "ytdl-ready") {
           ac.abort();
-          resolve(createIframeRpc());
+          resolve(createContentRpc());
         }
       },
       { signal: ac.signal },
@@ -26,7 +26,7 @@ export function initIframeRpc(): Promise<IframeRpc> {
   });
 }
 
-function createIframeRpc(): IframeRpc {
+function createContentRpc(): ContentRpc {
   const iframe = document.getElementById(IFRAME_ID) as HTMLIFrameElement;
 
   function call(method: string, params: unknown): Promise<unknown> {

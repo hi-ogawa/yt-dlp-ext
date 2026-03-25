@@ -7,9 +7,9 @@ import {
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
+import type { ContentRpc } from "./content-rpc.ts";
+import { initContentRpc } from "./content-rpc.ts";
 import { convertWebmToOpus } from "./lib/convert.ts";
-import type { IframeRpc } from "./lib/iframe-rpc.ts";
-import { initIframeRpc } from "./lib/iframe-rpc.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
   formatBytes,
@@ -24,7 +24,7 @@ const queryClient = new QueryClient();
 
 // --- Components ---
 
-function DownloadPage({ rpc }: { rpc: IframeRpc }) {
+function DownloadPage({ rpc }: { rpc: ContentRpc }) {
   const [input, setInput] = useState("");
 
   const searchMutation = useMutation({
@@ -83,7 +83,7 @@ function DownloadForm({
   rpc,
 }: {
   data: PlayerApiResult;
-  rpc: IframeRpc;
+  rpc: ContentRpc;
 }) {
   const audioFormats = data.streamingFormats
     .filter(isAudioOnly)
@@ -244,7 +244,7 @@ function App() {
   useTheme();
   const rpcQuery = useQuery({
     queryKey: ["iframe-rpc"],
-    queryFn: initIframeRpc,
+    queryFn: initContentRpc,
     staleTime: Infinity,
   });
 
