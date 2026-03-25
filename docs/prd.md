@@ -5,7 +5,7 @@
 - [x] chore: nest build under `dist/ext`, `dist/ext-dev`, `dist/yt-dlp-ext.zip`
 - [x] chore: setup `.github`
 - [ ] fix: fix inline theme script in `src/index.html`
-- [ ] feat: split long audio (cf. `yt-dlp-gui`, `youtube-dl-web`)
+- [ ] feat: split long audio (cf. `yt-dlp-gui`, `youtube-dl-web-v2`)
 - [ ] feat: embed audio thumbnail
 - [ ] feat: popup action to auto-fill search
 - [ ] feat: support downloading video
