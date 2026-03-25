@@ -1,0 +1,37 @@
+{
+  "name": "yt-dlp-ext",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare": "vp config",
+    "dev": "DEV_EXT=1 node --watch --watch-path=./src scripts/dev.ts",
+    "build": "vite build -c vite.ext.config.ts && cd dist && zip -r ../dist.zip .",
+    "tsc": "tsc -b",
+    "lint": "vp fmt && knip --fix",
+    "lint-check": "vp fmt --check && knip",
+    "test-e2e": "playwright test"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.91.3",
+    "lucide-react": "^0.577.0",
+    "radix-ui": "^1.4.3",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "sonner": "^2.0.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/chrome": "^0.1.38",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "knip": "^6.0.1",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.1",
+    "vite-plus": "latest"
+  }
+}
