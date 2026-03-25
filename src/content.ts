@@ -68,9 +68,6 @@ export const contentRpcHandlers = {
   },
 };
 
-const handlers: Record<string, (params: never) => Promise<unknown>> =
-  contentRpcHandlers;
-
 // --- postMessage listener ---
 
 window.addEventListener("message", async (e: MessageEvent) => {
@@ -78,7 +75,7 @@ window.addEventListener("message", async (e: MessageEvent) => {
   if (msg?.type !== "ytdl-request") return;
 
   const { id, method, params } = msg;
-  const handler = handlers[method];
+  const handler = contentRpcHandlers[method as keyof typeof contentRpcHandlers];
   if (!handler) {
     const response: RpcResponse = {
       type: "ytdl-response",
