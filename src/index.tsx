@@ -9,7 +9,6 @@ import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
-import { convertWebmToOpus } from "./lib/convert.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
   formatBytes,
@@ -18,6 +17,7 @@ import {
   parseVideoId,
 } from "./lib/youtube-utils.ts";
 import type { PlayerApiResult } from "./lib/youtube.ts";
+import { getWorkerRpc } from "./worker-rpc.ts";
 import "./styles.css";
 
 const queryClient = new QueryClient();
@@ -114,17 +114,20 @@ function DownloadForm({
         }),
       ]);
 
-      const opusData = await convertWebmToOpus(result.data, {
-        title: params.title,
-        artist: params.artist,
-        album: params.album,
-        images: [
-          {
-            data: new Uint8Array(thumbnailData),
-            mimeType: "image/jpeg",
-            kind: "coverFront",
-          },
-        ],
+      const opusData = await getWorkerRpc().convertWebmToOpus({
+        webmData: result.data,
+        metadata: {
+          title: params.title,
+          artist: params.artist,
+          album: params.album,
+          images: [
+            {
+              data: new Uint8Array(thumbnailData),
+              mimeType: "image/jpeg",
+              kind: "coverFront",
+            },
+          ],
+        },
       });
 
       const opusFilename = `${params.title}.opus`;
