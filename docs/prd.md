@@ -13,6 +13,8 @@ Chrome extension for downloading YouTube audio directly from the browser. See [.
 
 ## TODO
 
+- [ ] refactor: type-safe rpc
+- [ ] refactor: react-query for async logic
 - [ ] fix: fix inline theme script in `src/index.html`
 - [ ] feat: split long audio (cf. `yt-dlp-gui`, `youtube-dl-web-v2`)
 - [ ] feat: embed audio thumbnail
