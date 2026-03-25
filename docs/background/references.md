@@ -26,6 +26,8 @@ Chrome extension + web app for language learning via YouTube subtitles. The down
 
 **Origin of the download code**: `fetchPlayerApi`, chunked range download, and the postMessage RPC pattern were prototyped in ytsub-v5 and extracted into yt-dlp-ext as a standalone project.
 
+**Model for project organization**: yt-dlp-ext follows ytsub-v5's patterns for project setup (Vite + vite-plus, knip, Playwright e2e), extension structure (MV3, content script + background + extension page, multi-environment Vite build), UI (React 19, Tailwind 4, Radix, Lucide, Sonner, TanStack Query), docs (`AGENTS.md`, `docs/prd.md`, `docs/tasks/`), and conventions (kebab-case, `node` for scripts, lint-before-commit). When adding features, reference ytsub-v5 for established patterns.
+
 Repo: `~/code/personal/ytsub-v5`
 
 ## yt-dlp-ext
