@@ -1,4 +1,9 @@
-import { StrictMode, useEffect, useState } from "react";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import { convertWebmToOpus } from "./lib/convert.ts";
@@ -14,22 +19,7 @@ import {
 import type { PlayerApiResult } from "./lib/youtube.ts";
 import "./styles.css";
 
-function useIframeRpc() {
-  const [rpc, setRpc] = useState<IframeRpc>();
-
-  useEffect(() => {
-    let cancelled = false;
-    initIframeRpc().then((rpc) => {
-      if (cancelled) return;
-      setRpc(rpc);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return rpc;
-}
+const queryClient = new QueryClient();
 
 // --- Components ---
 
@@ -250,7 +240,11 @@ function DownloadForm({
 
 function App() {
   useTheme();
-  const rpc = useIframeRpc();
+  const { data: rpc } = useQuery({
+    queryKey: ["iframe-rpc"],
+    queryFn: initIframeRpc,
+    staleTime: Infinity,
+  });
 
   return (
     <div className="min-h-screen">
@@ -271,6 +265,8 @@ function App() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
   </StrictMode>,
 );
