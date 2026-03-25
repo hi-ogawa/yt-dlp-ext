@@ -6,7 +6,7 @@
   "scripts": {
     "prepare": "vp config",
     "dev": "DEV_EXT=1 node --watch --watch-path=./src scripts/dev.ts",
-    "build": "vite build -c vite.ext.config.ts && cd dist && zip -r ../dist.zip .",
+    "build": "vite build -c vite.ext.config.ts && cd dist/ext && zip -r ../yt-dlp-ext.zip .",
     "tsc": "tsc -b",
     "lint": "vp fmt && knip --fix",
     "lint-check": "vp fmt --check && knip",

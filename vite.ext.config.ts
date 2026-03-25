@@ -1,5 +1,11 @@
 import { execSync } from "node:child_process";
-import { cpSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -14,7 +20,7 @@ export default defineConfig({
   environments: {
     client: {
       build: {
-        outDir: "./dist",
+        outDir: "./dist/ext",
         minify: false,
         copyPublicDir: false,
         rolldownOptions: {
@@ -31,7 +37,7 @@ export default defineConfig({
     page: {
       consumer: "client",
       build: {
-        outDir: "./dist",
+        outDir: "./dist/ext",
         minify: false,
         emptyOutDir: false,
         copyPublicDir: false,
@@ -45,7 +51,7 @@ export default defineConfig({
     background: {
       consumer: "client",
       build: {
-        outDir: "./dist",
+        outDir: "./dist/ext",
         minify: false,
         emptyOutDir: false,
         copyPublicDir: false,
@@ -93,6 +99,14 @@ export default defineConfig({
         manifest.name = `yt-dlp-ext-dev [${branch} ${rev} ${time}]`;
       }
       writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+      // Copy to dist/ext-dev for stable Chrome load point during development
+      if (process.env.DEV_EXT) {
+        const dest = resolve("dist/ext-dev");
+        mkdirSync(dest, { recursive: true });
+        cpSync(outDir, dest, { recursive: true });
+        console.log(`[dev] Copied extension → ${dest}`);
+      }
     },
   },
 });

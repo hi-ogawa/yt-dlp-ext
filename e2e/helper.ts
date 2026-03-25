@@ -10,7 +10,7 @@ export const test = baseTest.extend<{
   extensionId: string;
 }>({
   context: async ({}, use) => {
-    const extensionPath = path.resolve("dist");
+    const extensionPath = path.resolve("dist/ext");
     const context = await chromium.launchPersistentContext("", {
       channel: "chromium",
       args: [
