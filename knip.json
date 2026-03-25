@@ -5,5 +5,5 @@
     "e2e/**/*.spec.ts",
     "scripts/*.ts"
   ],
-  "ignoreDependencies": ["@tanstack/react-query", "radix-ui"]
+  "ignoreDependencies": ["radix-ui"]
 }
