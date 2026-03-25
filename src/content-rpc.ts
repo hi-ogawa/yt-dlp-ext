@@ -18,14 +18,16 @@ export const initContentRpc = once(
         reject(new Error(`Iframe error: ${e.message}`));
       });
 
+      const ac = new AbortController();
       window.addEventListener(
         "message",
         (e: MessageEvent) => {
           if (e.data?.type === "ytdl-ready") {
+            ac.abort();
             resolve(createIframeRpc(iframe));
           }
         },
-        { once: true },
+        { signal: ac.signal },
       );
 
       document.body.appendChild(iframe);

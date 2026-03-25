@@ -34,8 +34,10 @@ export function createRpcProxy<Handlers>(
   call: (method: string, params: unknown) => Promise<unknown>,
 ): RpcClient<Handlers> {
   return new Proxy({} as RpcClient<Handlers>, {
-    get(_target, method: string) {
-      return (params: unknown) => call(method, params);
+    get(_target, prop) {
+      if (typeof prop !== "string" || prop === "then" || prop === "toJSON")
+        return undefined;
+      return (params: unknown) => call(prop, params);
     },
   });
 }
