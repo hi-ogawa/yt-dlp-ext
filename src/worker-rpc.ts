@@ -16,31 +16,11 @@ export function initWorkerRpc(): Promise<WorkerRpc> {
         reject(new Error(`Worker error: ${e.message}`));
       });
 
-      function call(method: string, params: unknown): Promise<unknown> {
-        return new Promise((resolve, reject) => {
-          const id = crypto.randomUUID();
-
-          const handler = (e: MessageEvent) => {
-            const msg = e.data as RpcResponse;
-            if (msg?.type !== "ytdl-response" || msg.id !== id) return;
-            worker.removeEventListener("message", handler);
-            if (msg.error) reject(new Error(msg.error));
-            else resolve(msg.result);
-          };
-          worker.addEventListener("message", handler);
-
-          worker.postMessage(
-            { type: "ytdl-request", id, method, params },
-            { transfer: findTransferables(params) },
-          );
-        });
-      }
-
       worker.addEventListener(
         "message",
         (e: MessageEvent) => {
           if (e.data?.type === "ytdl-ready") {
-            resolve(createRpcProxy<typeof workerRpcHandlers>(call));
+            resolve(createWorkerRpc(worker));
           }
         },
         { once: true },
@@ -48,6 +28,30 @@ export function initWorkerRpc(): Promise<WorkerRpc> {
     });
   }
   return workerRpcPromise;
+}
+
+function createWorkerRpc(worker: Worker): WorkerRpc {
+  function call(method: string, params: unknown): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      const id = crypto.randomUUID();
+
+      const handler = (e: MessageEvent) => {
+        const msg = e.data as RpcResponse;
+        if (msg?.type !== "ytdl-response" || msg.id !== id) return;
+        worker.removeEventListener("message", handler);
+        if (msg.error) reject(new Error(msg.error));
+        else resolve(msg.result);
+      };
+      worker.addEventListener("message", handler);
+
+      worker.postMessage(
+        { type: "ytdl-request", id, method, params },
+        { transfer: findTransferables(params) },
+      );
+    });
+  }
+
+  return createRpcProxy<typeof workerRpcHandlers>(call);
 }
 
 function findTransferables(value: unknown): Transferable[] {
