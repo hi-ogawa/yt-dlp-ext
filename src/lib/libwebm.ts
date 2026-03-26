@@ -1,6 +1,14 @@
 // Thin wrapper around the @hiogawa/ffmpeg ex01 Emscripten module (libwebm WASM).
 // Provides parseMetadata() and remux() for fast-seek download.
 //
+// @hiogawa/ffmpeg@1.0.0-pre.6 — published 2022-11-20, same day as
+//   youtube-dl-web-v2#29 "feat: download partial webm data with fast seeking".
+//   The ex01 module is a thin embind wrapper around Google's libwebm (v1.0.0.29):
+//     packages/ffmpeg/src/cpp/ex01-emscripten.cpp — embind bindings
+//     packages/ffmpeg/src/cpp/utils-webm.hpp — parseMetadataWrapper, remuxWrapper
+//   Pure in-memory computation — no pthreads, no SharedArrayBuffer, no filesystem I/O.
+//   The WASM binary (public/wasm/ex01-emscripten.wasm, 353KB) is copied from this package.
+//
 // Ported from youtube-dl-web-v2:
 //   packages/app/src/worker/libwebm.ts — LibwebmWorker class (extractWebmInfo, remux)
 //   packages/app/src/utils/worker-client-libwebm.ts — Comlink client (extractWebmInfo, remuxWebm)
