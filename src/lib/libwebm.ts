@@ -7,7 +7,6 @@
 //     packages/ffmpeg/src/cpp/ex01-emscripten.cpp — embind bindings
 //     packages/ffmpeg/src/cpp/utils-webm.hpp — parseMetadataWrapper, remuxWrapper
 //   Pure in-memory computation — no pthreads, no SharedArrayBuffer, no filesystem I/O.
-//   The WASM binary (public/wasm/ex01-emscripten.wasm, 353KB) is copied from this package.
 //
 // Ported from youtube-dl-web-v2:
 //   packages/app/src/worker/libwebm.ts — LibwebmWorker class (extractWebmInfo, remux)
@@ -28,6 +27,8 @@ import type {
 
 // @ts-ignore — Vite handles CommonJS default export
 import createModuleRaw from "@hiogawa/ffmpeg/build/emscripten/Release/ex01-emscripten.js";
+// Vite resolves this to a hashed asset URL at build time
+import WASM_URL from "@hiogawa/ffmpeg/build/emscripten/Release/ex01-emscripten.wasm?url";
 
 const createModule = createModuleRaw as unknown as EmscriptenInit;
 
@@ -37,11 +38,11 @@ function getModule(): Promise<EmscriptenModule> {
   if (!modulePromise) {
     // Original: worker received URLs via Comlink initialize(), then used
     //   importScripts(moduleUrl) + init({ locateFile: () => wasmUrl })
-    // Here we import the JS module directly and resolve the WASM via locateFile.
+    // Here we use Vite ?url import (same as original) to resolve the WASM path.
     modulePromise = createModule({
       locateFile: (path: string) => {
         if (path.endsWith(".wasm")) {
-          return "wasm/ex01-emscripten.wasm";
+          return WASM_URL;
         }
         return path;
       },
