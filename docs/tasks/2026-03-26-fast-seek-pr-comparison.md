@@ -110,10 +110,12 @@ function createNamedFunction(name, body) {
 
 The `createNamedFunction` call is cosmetic — it creates a function with a specific `.name` property for debugging. It can be patched to just return the body function directly without affecting functionality.
 
+There is only one `new Function()` call in the entire JS glue — this `createNamedFunction`. The JIT invoker optimization that newer Emscripten uses `new Function()` for doesn't exist in this 2022 build. So a simple patch is sufficient.
+
 Options:
 
-1. **Rebuild with `-sDYNAMIC_EXECUTION=0 -sEMBIND_AOT`** — the proper fix. `-sDYNAMIC_EXECUTION=0` removes all `eval()`/`new Function()` from Emscripten output. `-sEMBIND_AOT` (merged [emscripten-core/emscripten#20796](https://github.com/emscripten-core/emscripten/pull/20796), 2023-12-04) generates embind invokers at compile time so there's no performance loss. The current `@hiogawa/ffmpeg@1.0.0-pre.6` was published 2022-11-20 — before `EMBIND_AOT` existed. Requires republishing the package with a newer Emscripten.
-2. **Patch the JS glue at build time** — Vite plugin or post-build script to replace `createNamedFunction` body with `return body`. Quick workaround, avoids rebuilding the package.
+1. **Patch the JS glue at build time** (recommended) — Vite plugin or post-build script to replace `createNamedFunction` with `return body`. Only one `new Function()` call exists in the entire glue file, and it's purely cosmetic (sets function `.name` for debugging). No other dynamic execution to worry about.
+2. **Rebuild with `-sDYNAMIC_EXECUTION=0`** — the "proper" Emscripten approach. `-sEMBIND_AOT` ([emscripten-core/emscripten#20796](https://github.com/emscripten-core/emscripten/pull/20796), 2023-12-04) also exists for performance, but irrelevant here since ex01 only has 2 infrequently-called bindings. Requires republishing the package with newer Emscripten.
 3. **Add `'unsafe-eval'` to the extension CSP** — works but Chrome Web Store may reject it.
 
 The existing e2e tests didn't catch this because the full download path doesn't touch the WASM/worker code for parsing/remux. Only the fast-seek trim path triggers it.
