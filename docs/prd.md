@@ -18,17 +18,18 @@ Chrome extension for downloading YouTube audio directly from the browser. See [.
 - [x] refactor: react-query for async logic — [task doc](./tasks/2026-03-25-quick-refactoring.md)
 - [x] fix: fix inline theme script in `src/index.html`
 - [x] chore: icon and logo
-
-## TODO
-
-- [ ] feat: trimming — start/end time UI
-- [ ] feat: download progress — show chunk progress during download
-- [ ] feat: fast-seek download — skip unnecessary bytes when trimming
+- [x] feat: trimming — start/end time UI
+- [x] feat: fast-seek download — skip unnecessary bytes when trimming
   - [task doc](./tasks/2026-03-25-fast-seek-download.md)
   - [PR comparison](./tasks/2026-03-26-fast-seek-pr-comparison.md)
   - PR #10 (libwebm WASM, Option A) selected as base — [PR](https://github.com/hi-ogawa/yt-dlp-ext/pull/10)
+
+## TODO
+
+- [ ] feat: start/end time UI with iframe player (see `yt-dlp-gui`)
+- [ ] feat: download progress — show chunk progress during download
 - [ ] feat: popup action to auto-fill search
-- [ ] test: looks bad now
+- [ ] test: organize bettter and consolidate patterns
 - [ ] chore: publish extension
 
 ## Backlog
