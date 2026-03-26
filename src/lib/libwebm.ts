@@ -1,5 +1,16 @@
 // Thin wrapper around the @hiogawa/ffmpeg ex01 Emscripten module (libwebm WASM).
 // Provides parseMetadata() and remux() for fast-seek download.
+//
+// Ported from youtube-dl-web-v2:
+//   packages/app/src/worker/libwebm.ts — LibwebmWorker class (extractWebmInfo, remux)
+//   packages/app/src/utils/worker-client-libwebm.ts — Comlink client (extractWebmInfo, remuxWebm)
+//
+// Changes from original:
+//   - Direct ESM import of Emscripten JS + locateFile for WASM, instead of
+//     importScripts() + Comlink. Original used ?url imports for both JS and WASM
+//     and passed URLs to worker via Comlink initialize().
+//   - Lazy singleton (modulePromise) instead of explicit initialize() call.
+//   - fix_timestamp default: original used false, this uses false to match.
 
 import type {
   EmscriptenInit,
@@ -16,6 +27,9 @@ let modulePromise: Promise<EmscriptenModule> | undefined;
 
 function getModule(): Promise<EmscriptenModule> {
   if (!modulePromise) {
+    // Original: worker received URLs via Comlink initialize(), then used
+    //   importScripts(moduleUrl) + init({ locateFile: () => wasmUrl })
+    // Here we import the JS module directly and resolve the WASM via locateFile.
     modulePromise = createModule({
       locateFile: (path: string) => {
         if (path.endsWith(".wasm")) {
@@ -28,11 +42,15 @@ function getModule(): Promise<EmscriptenModule> {
   return modulePromise;
 }
 
-/** Parse the EBML header of a WebM file to extract cue points and track info. */
+/**
+ * Parse the EBML header of a WebM file to extract cue points and track info.
+ * Original: LibwebmWorker.extractWebmInfo()
+ */
 export async function parseMetadata(
   buffer: Uint8Array,
 ): Promise<SimpleMetadata> {
   const mod = await getModule();
+  // Original: arrayToVector() helper did the same vec.resize + view().set() pattern
   const vec = new mod.embind_Vector();
   vec.resize(buffer.length, 0);
   vec.view().set(buffer);
@@ -40,11 +58,14 @@ export async function parseMetadata(
   return JSON.parse(json) as SimpleMetadata;
 }
 
-/** Remux partial WebM data (metadata header + selected clusters) into a valid WebM file. */
+/**
+ * Remux partial WebM data (metadata header + selected clusters) into a valid WebM file.
+ * Original: LibwebmWorker.remux() — used fix_timestamp = false
+ */
 export async function remux(
   metadataBuffer: Uint8Array,
   frameBuffer: Uint8Array,
-  fixTimestamp = true,
+  fixTimestamp = false,
 ): Promise<Uint8Array> {
   const mod = await getModule();
 

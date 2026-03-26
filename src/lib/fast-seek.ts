@@ -1,5 +1,14 @@
 // Fast-seek utilities for computing byte ranges from WebM cue points.
-// Ported from youtube-dl-web-v2's findContainingRange().
+//
+// Ported from youtube-dl-web-v2:
+//   packages/app/src/utils/worker-client-libwebm.ts — findContainingRange()
+//   packages/app/src/utils/download.ts — downloadFastSeek() orchestration
+//
+// Changes from original:
+//   - Binary search instead of linear scan (original used .reverse().find())
+//   - startTime/endTime required (caller provides defaults), original had them optional
+//   - Graceful fallback ({ start: 0 }) instead of tinyassert on missing data
+//   - headerSize() is new (original passed entire initial fetch to remux)
 
 import type { SimpleMetadata } from "@hiogawa/ffmpeg/build/tsc/cpp/ex01-emscripten-types";
 
@@ -19,6 +28,8 @@ interface ByteRange {
  * - The first cue point whose time > endTime (start of first unneeded cluster = our end)
  *
  * Byte positions in cue points are relative to the segment body start.
+ *
+ * Original: worker-client-libwebm.ts findContainingRange()
  */
 export function findContainingRange(
   metadata: SimpleMetadata,
@@ -32,10 +43,13 @@ export function findContainingRange(
   }
 
   // Cue points are sorted by time. Extract (time, position) pairs.
+  // Original does: { time: time / 1000, cluster_position }
+  // Cue point times from libwebm are in milliseconds, convert to seconds
+  // to match startTime/endTime (parsed from user input in seconds).
   const cues = cue_points
     .filter((c) => c.time !== undefined && c.cluster_position !== undefined)
     .map((c) => ({
-      time: c.time!,
+      time: c.time! / 1000,
       position: segment_body_start + c.cluster_position!,
     }));
 
@@ -44,6 +58,7 @@ export function findContainingRange(
   }
 
   // Find the last cue with time <= startTime (binary search)
+  // Original: [...cuePoints].reverse().find((c) => c.time <= startTime)
   let startIdx = 0;
   {
     let lo = 0;
@@ -60,6 +75,7 @@ export function findContainingRange(
   }
 
   // Find the first cue with time > endTime
+  // Original: cuePoints.find((c) => c.time > endTime)
   let endIdx: number | undefined;
   {
     let lo = 0;
@@ -89,6 +105,9 @@ export function findContainingRange(
  * Compute the header size — the number of bytes from the start of the file
  * up to (but not including) the first Cluster element.
  * This is the metadata portion needed for remuxing.
+ *
+ * New in this port — original passed the entire initial fetch buffer to remux.
+ * Trimming to just the metadata avoids sending trailing cluster data as "metadata".
  */
 export function headerSize(metadata: SimpleMetadata): number {
   const { segment_body_start, cue_points } = metadata;
