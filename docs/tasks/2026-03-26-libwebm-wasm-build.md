@@ -55,7 +55,7 @@ Add for CSP fix:
 ## Proposed code organization
 
 ```
-packages/libwebm/
+packages/media-utils/
 ├── src/
 │   ├── ex01-emscripten.cpp       # embind bindings
 │   ├── utils-webm.hpp            # WebM parse/remux logic
@@ -73,7 +73,7 @@ packages/libwebm/
     └── ex01-emscripten.wasm
 ```
 
-`src/lib/libwebm.ts` imports from `../packages/libwebm/dist/` instead of `@hiogawa/ffmpeg`.
+`src/lib/libwebm.ts` imports from `../packages/media-utils/dist/` instead of `@hiogawa/ffmpeg`.
 
 ### Why commit build output
 
