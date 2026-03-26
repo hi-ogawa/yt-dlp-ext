@@ -18,14 +18,15 @@ Chrome extension for downloading YouTube audio directly from the browser. See [.
 - [x] refactor: react-query for async logic — [task doc](./tasks/2026-03-25-quick-refactoring.md)
 - [x] fix: fix inline theme script in `src/index.html`
 - [x] chore: icon and logo
-- [x] feat: trimming — start/end time UI
-- [x] feat: fast-seek download — skip unnecessary bytes when trimming
-  - [task doc](./tasks/2026-03-25-fast-seek-download.md)
-  - [PR comparison](./tasks/2026-03-26-fast-seek-pr-comparison.md)
-  - PR #10 (libwebm WASM, Option A) selected as base — [PR](https://github.com/hi-ogawa/yt-dlp-ext/pull/10)
 
 ## TODO
 
+- [ ] feat: trimming — start/end time UI
+- [ ] feat: fast-seek download — skip unnecessary bytes when trimming
+  - [task doc](./tasks/2026-03-25-fast-seek-download.md)
+  - [PR comparison](./tasks/2026-03-26-fast-seek-pr-comparison.md)
+  - PR #10 (libwebm WASM, Option A) selected as base — [PR](https://github.com/hi-ogawa/yt-dlp-ext/pull/10)
+- [ ] fix: Emscripten embind CSP — `craftInvokerFunction` uses `new Function()` via `new_(Function, args1)`, blocked by MV3 CSP. Needs build-time patch or rebuild with `-sDYNAMIC_EXECUTION=0`. See [PR comparison](./tasks/2026-03-26-fast-seek-pr-comparison.md#emscripten-csp-issue)
 - [ ] feat: start/end time UI with iframe player (see `yt-dlp-gui`)
 - [ ] feat: download progress — show chunk progress during download
 - [ ] feat: popup action to auto-fill search
