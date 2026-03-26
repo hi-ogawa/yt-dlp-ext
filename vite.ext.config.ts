@@ -16,6 +16,22 @@ const rev = git("git rev-parse --short HEAD");
 const dirty = git("git status --porcelain") ? "-dirty" : "";
 const buildTime = new Date();
 
+// Patch Emscripten embind's createNamedFunction to avoid `new Function()`,
+// which is blocked by MV3 extension CSP (only allows wasm-unsafe-eval).
+// See docs/tasks/2026-03-26-fast-seek-pr-comparison.md#emscripten-csp-issue
+function patchEmscriptenCsp() {
+  return {
+    name: "patch-emscripten-csp",
+    transform(code: string, id: string) {
+      if (!id.includes("ex01-emscripten")) return;
+      return code.replace(
+        /function createNamedFunction\(name, body\) \{[\s\S]*?\n\}/,
+        "function createNamedFunction(name, body) { return body; }",
+      );
+    },
+  };
+}
+
 export default defineConfig({
   environments: {
     client: {
@@ -66,7 +82,10 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(buildTime.toISOString()),
     __GIT_REV__: JSON.stringify(rev + dirty),
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), patchEmscriptenCsp()],
+  worker: {
+    plugins: () => [patchEmscriptenCsp()],
+  },
   builder: {
     async buildApp(builder) {
       await builder.build(builder.environments.client);

@@ -110,11 +110,16 @@ function createNamedFunction(name, body) {
 
 The `createNamedFunction` call is cosmetic — it creates a function with a specific `.name` property for debugging. It can be patched to just return the body function directly without affecting functionality.
 
-There is only one `new Function()` call in the entire JS glue — this `createNamedFunction`. The JIT invoker optimization that newer Emscripten uses `new Function()` for doesn't exist in this 2022 build. So a simple patch is sufficient.
+There are two `new Function()` call sites in the JS glue (not one as initially reported):
+
+1. **Line 3180: `createNamedFunction`** — cosmetic, sets function `.name` for debugging. Easy to patch: `return body`.
+2. **Line 4044: `craftInvokerFunction`** — `new_(Function, args1).apply(null, args2)`. This is the embind JIT invoker generator: it dynamically builds optimized call wrappers with bound variables (`throwBindingError`, `invoker`, `fn`, `retType`, etc.) from a string body. Not cosmetic — this is the core embind dispatch mechanism.
+
+A Vite `worker.plugins` transform patches `createNamedFunction` (site 1), but `craftInvokerFunction` (site 2) still triggers CSP. The manifest also needs `wasm-unsafe-eval` for WASM instantiation itself.
 
 Options:
 
-1. **Patch the JS glue at build time** (recommended) — Vite plugin or post-build script to replace `createNamedFunction` with `return body`. Only one `new Function()` call exists in the entire glue file, and it's purely cosmetic (sets function `.name` for debugging). No other dynamic execution to worry about.
+1. **Patch both sites at build time** — `createNamedFunction` is trivial (`return body`). `craftInvokerFunction` needs a closure-based replacement that does the same wire-type conversion and invoker dispatch without `new Function()`. More involved but doable since ex01 only exposes 2 functions + 1 vector class.
 2. **Rebuild with `-sDYNAMIC_EXECUTION=0`** — the "proper" Emscripten approach. `-sEMBIND_AOT` ([emscripten-core/emscripten#20796](https://github.com/emscripten-core/emscripten/pull/20796), 2023-12-04) also exists for performance, but irrelevant here since ex01 only has 2 infrequently-called bindings. Requires republishing the package with newer Emscripten.
 3. **Add `'unsafe-eval'` to the extension CSP** — works but Chrome Web Store may reject it.
 
