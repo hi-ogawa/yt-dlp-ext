@@ -23,7 +23,9 @@ Chrome extension for downloading YouTube audio directly from the browser. See [.
 
 - [ ] feat: trimming — start/end time UI
 - [ ] feat: download progress — show chunk progress during download
-- [ ] feat: fast-seek download — skip unnecessary bytes when trimming — [task doc](./tasks/2026-03-25-fast-seek-download.md), [PR comparison](./tasks/2026-03-26-fast-seek-pr-comparison.md)
+- [ ] feat: fast-seek download — skip unnecessary bytes when trimming
+  - [task doc](./tasks/2026-03-25-fast-seek-download.md)
+  - [PR comparison](./tasks/2026-03-26-fast-seek-pr-comparison.md)
   - PR #10 (libwebm WASM, Option A) selected as base — [PR](https://github.com/hi-ogawa/yt-dlp-ext/pull/10)
 - [ ] feat: popup action to auto-fill search
 - [ ] test: looks bad now
