@@ -89,7 +89,24 @@ This is the real question. Fast-seek produces `header metadata + partial cluster
 
 ### Emscripten CSP issue
 
-Discovered during e2e testing: the fast-seek path fails at runtime in the Chrome extension because Emscripten's embind uses `new Function()` (in `createNamedFunction`, line 3180 of the JS glue). MV3 extensions apply a default CSP of `script-src 'self' 'wasm-unsafe-eval'` — `wasm-unsafe-eval` allows WASM instantiation but does NOT allow `eval()` / `new Function()`.
+Discovered during e2e testing: the fast-seek path fails at runtime in the Chrome extension because Emscripten's embind uses `new Function()`. MV3 extensions apply a default CSP of `script-src 'self' 'wasm-unsafe-eval'` — `wasm-unsafe-eval` allows WASM instantiation but does NOT allow `eval()` / `new Function()`.
+
+The offending code is in `node_modules/@hiogawa/ffmpeg/build/emscripten/Release/ex01-emscripten.js:3178-3181`:
+
+```js
+function createNamedFunction(name, body) {
+  name = makeLegalFunctionName(name);
+  return new Function(
+    "body",
+    "return function " +
+      name +
+      "() {\n" +
+      '    "use strict";' +
+      "    return body.apply(this, arguments);\n" +
+      "};\n",
+  )(body);
+}
+```
 
 The `createNamedFunction` call is cosmetic — it creates a function with a specific `.name` property for debugging. It can be patched to just return the body function directly without affecting functionality.
 
