@@ -21,10 +21,12 @@ Source: `~/code/personal/youtube-dl-web-v2/packages/ffmpeg/`
 
 ### Dependencies (fetched at build time)
 
-| Dependency    | Version  | How                                                          |
-| ------------- | -------- | ------------------------------------------------------------ |
-| libwebm       | 1.0.0.29 | Meson wrap, cloned from `github.com/webmproject/libwebm.git` |
-| nlohmann/json | 3.11.2   | Meson wrap, header-only                                      |
+| Dependency    | Version  | How                                                          | Required? |
+| ------------- | -------- | ------------------------------------------------------------ | --------- |
+| libwebm       | 1.0.0.29 | Meson wrap, cloned from `github.com/webmproject/libwebm.git` | Yes       |
+| nlohmann/json | 3.11.2   | Meson wrap, header-only                                      | Maybe not |
+
+nlohmann/json is only used in `parseMetadataWrapper` (line 308 of utils-webm.hpp) to serialize `SimpleMetadata` struct → JSON string → embind → JS `JSON.parse()`. Could be eliminated by exposing struct fields directly via embind or writing a trivial manual `toJson()` — the struct is small (5 scalar fields + 2 arrays of simple objects).
 
 ### Build infra
 
