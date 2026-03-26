@@ -83,8 +83,23 @@ This is the real question. Fast-seek produces `header metadata + partial cluster
 | --------------------- | ------------------------------------------------------------------------------------ | ------ |
 | Time unit mismatch    | Divide cue point times by 1000 in `findContainingRange`                              | Fixed  |
 | fix_timestamp default | Changed from `true` to `false` to match original                                     | Fixed  |
+| Emscripten CSP block  | Embind's `createNamedFunction` uses `new Function()`, blocked by MV3 extension CSP   | TODO   |
 | Use-after-transfer    | Clone the header ArrayBuffer before sending to worker, or restructure to keep a copy | TODO   |
 | Double fetchPlayerApi | Cache the resolved URL, or pass URL from `downloadHeader` to `downloadRange`         | TODO   |
+
+### Emscripten CSP issue
+
+Discovered during e2e testing: the fast-seek path fails at runtime in the Chrome extension because Emscripten's embind uses `new Function()` (in `createNamedFunction`, line 3180 of the JS glue). MV3 extensions apply a default CSP of `script-src 'self' 'wasm-unsafe-eval'` — `wasm-unsafe-eval` allows WASM instantiation but does NOT allow `eval()` / `new Function()`.
+
+The `createNamedFunction` call is cosmetic — it creates a function with a specific `.name` property for debugging. It can be patched to just return the body function directly without affecting functionality.
+
+Options:
+
+1. Patch the Emscripten JS glue at build time (Vite plugin or post-build script) to replace `createNamedFunction` with a no-op wrapper
+2. Add `'unsafe-eval'` to the extension CSP — but Chrome Web Store may reject this
+3. Rebuild the WASM module with newer Emscripten that has `-sEMBIND_AOT` (avoids dynamic codegen)
+
+The existing e2e tests didn't catch this because the full download path doesn't touch the WASM/worker code for parsing/remux. Only the fast-seek trim path triggers it.
 
 **Cherry-pick from #11**: SeekHead-based Cues-at-end-of-file fallback. Neither #9 nor #10 handle this.
 
