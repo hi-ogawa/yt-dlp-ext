@@ -4,7 +4,7 @@ import {
   useMutation,
   useQuery,
 } from "@tanstack/react-query";
-import { StrictMode, useState } from "react";
+import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
@@ -32,6 +32,83 @@ function parseTime(s: string): number {
   if (parts.length === 3) return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
   if (parts.length === 2) return parts[0]! * 60 + parts[1]!;
   return parts[0]!;
+}
+
+/** Format seconds to "m:ss" or "h:mm:ss". */
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0)
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+// --- YouTube Player Hook ---
+
+/**
+ * Controls a YouTube embed iframe via the postMessage API.
+ * Tracks currentTime from periodic infoDelivery events.
+ */
+function useYouTubePlayer(videoId: string) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const currentTimeRef = useRef(0);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    function postToPlayer(data: unknown) {
+      iframe!.contentWindow?.postMessage(
+        JSON.stringify(data),
+        "https://www.youtube.com",
+      );
+    }
+
+    function handleMessage(e: MessageEvent) {
+      if (e.source !== iframe!.contentWindow) return;
+      let data: { event?: string; info?: { currentTime?: number } };
+      try {
+        data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+      } catch {
+        return;
+      }
+      if (
+        (data.event === "infoDelivery" || data.event === "initialDelivery") &&
+        typeof data.info?.currentTime === "number"
+      ) {
+        currentTimeRef.current = data.info.currentTime;
+      }
+    }
+
+    function handleLoad() {
+      // Start receiving infoDelivery events
+      postToPlayer({ event: "listening" });
+    }
+
+    window.addEventListener("message", handleMessage);
+    iframe.addEventListener("load", handleLoad);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      iframe.removeEventListener("load", handleLoad);
+    };
+  }, [videoId]);
+
+  const getCurrentTime = () => currentTimeRef.current;
+
+  const seekTo = (seconds: number) => {
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({
+        event: "command",
+        func: "seekTo",
+        args: [seconds, true],
+      }),
+      "https://www.youtube.com",
+    );
+  };
+
+  return { iframeRef, getCurrentTime, seekTo };
 }
 
 // Initial header fetch size. WebM headers with Cues are typically small,
@@ -171,6 +248,7 @@ function DownloadForm({
   const [album, setAlbum] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const player = useYouTubePlayer(data.video.youtubeId);
 
   const downloadMutation = useMutation({
     mutationFn: async (params: {
@@ -252,11 +330,14 @@ function DownloadForm({
         </p>
       </div>
 
-      <img
-        src={`https://i.ytimg.com/vi/${data.video.youtubeId}/hqdefault.jpg`}
-        alt=""
-        className="w-full rounded"
-      />
+      <div className="relative aspect-video w-full overflow-hidden rounded">
+        <iframe
+          ref={player.iframeRef}
+          src={`https://www.youtube.com/embed/${data.video.youtubeId}?enablejsapi=1&origin=${encodeURIComponent(location.origin)}`}
+          allow="autoplay; encrypted-media"
+          className="absolute h-full w-full"
+        />
+      </div>
 
       <div className="space-y-1.5">
         <label className="block text-sm font-medium">Title</label>
@@ -294,7 +375,25 @@ function DownloadForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium">Start time</label>
+          <div className="flex items-center gap-1">
+            <label className="text-sm font-medium">Start time</label>
+            <button
+              type="button"
+              className="rounded px-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setStartTime(formatTime(player.getCurrentTime()))}
+            >
+              use current
+            </button>
+            <button
+              type="button"
+              className="rounded px-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                if (startTime) player.seekTo(parseTime(startTime));
+              }}
+            >
+              seek
+            </button>
+          </div>
           <input
             type="text"
             value={startTime}
@@ -305,7 +404,25 @@ function DownloadForm({
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium">End time</label>
+          <div className="flex items-center gap-1">
+            <label className="text-sm font-medium">End time</label>
+            <button
+              type="button"
+              className="rounded px-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setEndTime(formatTime(player.getCurrentTime()))}
+            >
+              use current
+            </button>
+            <button
+              type="button"
+              className="rounded px-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                if (endTime) player.seekTo(parseTime(endTime));
+              }}
+            >
+              seek
+            </button>
+          </div>
           <input
             type="text"
             value={endTime}
