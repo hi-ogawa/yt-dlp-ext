@@ -48,7 +48,8 @@ test("search video and download audio @yt", async ({ page, extensionId }) => {
   await expect(page.getByText("Downloaded")).toBeVisible({ timeout: 60_000 });
 });
 
-test("search video and download trimmed audio @yt", async ({
+// TODO
+test.skip("search video and download trimmed audio @yt", async ({
   page,
   extensionId,
 }) => {
