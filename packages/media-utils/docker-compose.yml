@@ -1,0 +1,12 @@
+services:
+  emscripten:
+    build:
+      context: .
+    user: ${DOCKER_USER:-1000:1000}
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - emscripten-cache:/emsdk/upstream/emscripten/cache
+
+volumes:
+  emscripten-cache:
