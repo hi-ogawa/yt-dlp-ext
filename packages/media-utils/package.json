@@ -1,0 +1,10 @@
+{
+  "name": "@yt-dlp-ext/media-utils",
+  "version": "0.0.0",
+  "private": true,
+  "description": "WebM metadata parsing and remuxing via libwebm WASM",
+  "files": [
+    "dist/ex01-emscripten.js",
+    "dist/ex01-emscripten.wasm"
+  ]
+}

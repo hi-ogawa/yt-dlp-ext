@@ -1,0 +1,9 @@
+# Meson build directory
+build/
+
+# Meson fetched subprojects (re-downloaded at build time)
+subprojects/libwebm-*/
+subprojects/nlohmann_json-*/
+
+# Keep dist/ committed (pre-built WASM output)
+!dist/
