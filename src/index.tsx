@@ -4,7 +4,7 @@ import {
   useMutation,
   useQuery,
 } from "@tanstack/react-query";
-import { StrictMode, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
@@ -44,6 +44,13 @@ function DownloadPage() {
   const rpc = rpcQuery.data!;
 
   const [input, setInput] = useState("");
+  const [showCta, setShowCta] = useState(false);
+
+  useEffect(() => {
+    if (!rpcQuery.isPending) return;
+    const timer = setTimeout(() => setShowCta(true), 2_000);
+    return () => clearTimeout(timer);
+  }, [rpcQuery.isPending]);
 
   const searchMutation = useMutation({
     mutationFn: (videoId: string) => rpc.getStreamingFormats({ videoId }),
@@ -86,6 +93,25 @@ function DownloadPage() {
           {searchMutation.isPending ? "Searching..." : "Search"}
         </button>
       </form>
+
+      {showCta && rpcQuery.isPending && (
+        <div className="rounded-md border border-border p-3 text-sm">
+          <p className="font-medium">Extension not detected</p>
+          <p className="mt-1 text-muted-foreground">
+            Install the Chrome extension to use this app.{" "}
+            <a
+              href="https://github.com/hi-ogawa/yt-dlp-ext/releases"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-foreground"
+            >
+              Download zip
+            </a>{" "}
+            then drag and drop it onto{" "}
+            <code className="text-xs">chrome://extensions</code>.
+          </p>
+        </div>
+      )}
 
       {rpcQuery.isError && (
         <p className="text-sm text-red-500">

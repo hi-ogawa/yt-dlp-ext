@@ -9,10 +9,9 @@ import {
 // https://www.youtube.com/watch?v=bX1xq3cOFuA
 export const TEST_VIDEO_ID = "bX1xq3cOFuA";
 
-export const test = baseTest.extend<{
-  context: BrowserContext;
-  extensionId: string;
-}>({
+// Load the built extension in a persistent Chromium context so the
+// content script is available on the web app served by the dev server.
+export const test = baseTest.extend<{ context: BrowserContext }>({
   context: async ({}, use) => {
     const extensionPath = path.resolve("dist/ext");
     const context = await chromium.launchPersistentContext("", {
@@ -29,13 +28,6 @@ export const test = baseTest.extend<{
     });
     await use(context);
     await context.close();
-  },
-  extensionId: async ({ context }, use) => {
-    let [serviceWorker] = context.serviceWorkers();
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent("serviceworker");
-    }
-    await use(serviceWorker.url().split("/")[2]);
   },
 });
 

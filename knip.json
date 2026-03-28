@@ -5,6 +5,5 @@
     "e2e/**/*.spec.ts",
     "scripts/*.ts"
   ],
-  "ignoreDependencies": ["radix-ui"],
-  "ignore": ["public/theme-init.js"]
+  "ignoreDependencies": ["radix-ui"]
 }
