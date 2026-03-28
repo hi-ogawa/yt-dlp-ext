@@ -6,7 +6,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -90,9 +90,12 @@ export default defineConfig({
       }
       writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
-      // Copy to dist/ext-dev for stable Chrome load point during development
+      // Copy to main repo's dist/ext-dev for stable Chrome load point during development
       if (process.env.DEV_EXT) {
-        const dest = resolve("dist/ext-dev");
+        const cwd = process.cwd();
+        const match = basename(cwd).match(/^(.+)-wt\d+$/);
+        const mainRepo = match ? resolve(cwd, "..", match[1]) : cwd;
+        const dest = resolve(mainRepo, "dist/ext-dev");
         mkdirSync(dest, { recursive: true });
         cpSync(outDir, dest, { recursive: true });
         console.log(`[dev] Copied extension → ${dest}`);
