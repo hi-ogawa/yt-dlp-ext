@@ -4,6 +4,9 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    entries: ["./src/worker.ts"],
+  },
   server: {
     forwardConsole: true,
   },

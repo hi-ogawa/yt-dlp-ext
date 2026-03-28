@@ -9,6 +9,7 @@
     "build": "vite build -c vite.web.config.ts",
     "dev-ext": "DEV_EXT=1 node --watch --watch-path=./src scripts/dev.ts",
     "build-ext": "vite build -c vite.ext.config.ts && cd dist/ext && zip -r ../yt-dlp-ext.zip .",
+    "dev-full": "pnpm run '/^(dev|dev-ext)$/'",
     "tsc": "tsc -b",
     "lint": "vp fmt && knip --fix",
     "lint-check": "vp fmt --check && knip",
