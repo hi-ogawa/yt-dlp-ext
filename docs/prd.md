@@ -35,7 +35,7 @@ Chrome extension + web app for downloading YouTube audio directly from the brows
 
 - [ ] feat: download progress — show chunk progress during download
 - [ ] feat: fast-seek download — skip unnecessary bytes when trimming — [task doc](./tasks/2026-03-25-fast-seek-download.md)
-- [ ] chore: publish extension to Chrome Web Store
+- [ ] chore: ~~publish extension to Chrome Web Store~~ — instead, link directly to zip download + drag-and-drop install from the web app (no store review needed)
 
 ## Backlog
 
