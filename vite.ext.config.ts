@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, resolve } from "node:path";
+import path from "node:path";
 import { defineConfig } from "vite";
 
 const git = (cmd: string) => execSync(cmd).toString().trim();
@@ -9,6 +9,7 @@ const dirty = git("git status --porcelain") ? "-dirty" : "";
 const buildTime = new Date();
 
 export default defineConfig({
+  publicDir: "./public-ext",
   environments: {
     client: {
       build: {
@@ -56,20 +57,8 @@ export default defineConfig({
       await builder.build(builder.environments.background);
       const outDir = builder.environments.client.config.build.outDir;
 
-      // Copy extension-specific public assets (no _headers — web only)
-      for (const asset of [
-        "manifest.json",
-        "icons",
-        "theme-init.js",
-        "favicon.svg",
-      ]) {
-        cpSync(resolve("public", asset), resolve(outDir, asset), {
-          recursive: true,
-        });
-      }
-
       // Modify manifest for dev builds
-      const manifestPath = resolve(outDir, "manifest.json");
+      const manifestPath = path.join(outDir, "manifest.json");
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
       if (process.env.DEV_EXT) {
         const branch = git("git branch --show-current");
@@ -84,9 +73,9 @@ export default defineConfig({
       // Copy to main repo's dist/ext-dev for stable Chrome load point during development
       if (process.env.DEV_EXT) {
         const cwd = process.cwd();
-        const match = basename(cwd).match(/^(.+)-wt\d+$/);
-        const mainRepo = match ? resolve(cwd, "..", match[1]) : cwd;
-        const dest = resolve(mainRepo, "dist/ext-dev");
+        const match = path.basename(cwd).match(/^(.+)-wt\d+$/);
+        const mainRepo = match ? path.join(cwd, "..", match[1]) : cwd;
+        const dest = path.join(mainRepo, "dist/ext-dev");
         mkdirSync(dest, { recursive: true });
         cpSync(outDir, dest, { recursive: true });
         console.log(`[dev] Copied extension → ${dest}`);
