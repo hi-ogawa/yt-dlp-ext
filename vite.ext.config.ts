@@ -1,11 +1,5 @@
 import { execSync } from "node:child_process";
-import {
-  cpSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -73,9 +67,6 @@ export default defineConfig({
       await builder.build(builder.environments.page);
       await builder.build(builder.environments.background);
       const outDir = builder.environments.client.config.build.outDir;
-
-      // Move html from nested path to root
-      rmSync(resolve(outDir, "src"), { force: true, recursive: true });
 
       // Modify manifest for dev builds
       const manifestPath = resolve(outDir, "manifest.json");
