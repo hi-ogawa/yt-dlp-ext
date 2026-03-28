@@ -22,6 +22,17 @@ import "./styles.css";
 
 const queryClient = new QueryClient();
 
+// --- Helpers ---
+
+/** Parse time string like "1:23" or "1:02:30" to seconds. */
+function parseTime(s: string): number {
+  const parts = s.split(":").map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 3) return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
+  if (parts.length === 2) return parts[0]! * 60 + parts[1]!;
+  return parts[0]!;
+}
+
 // --- Components ---
 
 function DownloadPage() {
@@ -108,6 +119,8 @@ function DownloadForm({
   const [title, setTitle] = useState(data.video.title);
   const [artist, setArtist] = useState(data.video.channelName);
   const [album, setAlbum] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
 
   const downloadMutation = useMutation({
     mutationFn: async (params: {
@@ -115,6 +128,8 @@ function DownloadForm({
       title: string;
       artist: string;
       album?: string;
+      startTime?: number;
+      endTime?: number;
     }) => {
       const [result, thumbnailData] = await Promise.all([
         rpc.downloadFormat({
@@ -125,6 +140,11 @@ function DownloadForm({
           videoId: data.video.youtubeId,
         }),
       ]);
+
+      const trim =
+        params.startTime !== undefined || params.endTime !== undefined
+          ? { start: params.startTime, end: params.endTime }
+          : undefined;
 
       const workerRpc = await initWorkerRpc();
       const opusData = await workerRpc.convertWebmToOpus({
@@ -141,6 +161,7 @@ function DownloadForm({
             },
           ],
         },
+        trim,
       });
 
       const opusFilename = `${params.title}.opus`;
@@ -211,6 +232,27 @@ function DownloadForm({
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        {(
+          [
+            ["Start time", startTime, setStartTime],
+            ["End time", endTime, setEndTime],
+          ] as const
+        ).map(([label, value, setValue]) => (
+          <div key={label} className="space-y-1.5">
+            <label className="block text-sm font-medium">{label}</label>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              disabled={downloadMutation.isPending}
+              placeholder="0:00"
+              className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+            />
+          </div>
+        ))}
+      </div>
+
       {audioFormats.length === 0 ? (
         <p className="text-sm text-red-500">No audio formats available.</p>
       ) : (
@@ -239,6 +281,8 @@ function DownloadForm({
                 title,
                 artist,
                 album: album || undefined,
+                startTime: startTime ? parseTime(startTime) : undefined,
+                endTime: endTime ? parseTime(endTime) : undefined,
               })
             }
             disabled={downloadMutation.isPending || downloadMutation.isSuccess}
