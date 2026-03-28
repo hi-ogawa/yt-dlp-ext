@@ -1,3 +1,5 @@
+import { useCallback } from "react";
+
 export interface YTPlayer {
   playVideo(): void;
   pauseVideo(): void;
@@ -36,7 +38,7 @@ export function loadYoutubeIframeApi(): Promise<void> {
   return iframeApiPromise;
 }
 
-export async function createYoutubePlayer(options: {
+async function createYoutubePlayer(options: {
   element: HTMLElement;
   videoId: string;
 }): Promise<YTPlayer> {
@@ -51,4 +53,31 @@ export async function createYoutubePlayer(options: {
       events: { onReady: ({ target: p }) => resolve(p) },
     });
   });
+}
+
+export function useYoutubePlayerRef(options: {
+  videoId: string;
+  setPlayer: (player: YTPlayer | undefined) => void;
+}) {
+  const { videoId, setPlayer } = options;
+  return useCallback(
+    (el: HTMLDivElement) => {
+      let player: YTPlayer | undefined;
+      let disposed = false;
+      createYoutubePlayer({ element: el, videoId }).then((p) => {
+        if (disposed) {
+          p.destroy();
+        } else {
+          player = p;
+          setPlayer(p);
+        }
+      });
+      return () => {
+        disposed = true;
+        player?.destroy();
+        setPlayer(undefined);
+      };
+    },
+    [videoId, setPlayer],
+  );
 }

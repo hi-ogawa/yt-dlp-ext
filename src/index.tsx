@@ -4,15 +4,15 @@ import {
   useMutation,
   useQuery,
 } from "@tanstack/react-query";
-import { StrictMode, useCallback, useEffect, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
-  createYoutubePlayer,
   loadYoutubeIframeApi,
+  useYoutubePlayerRef,
   type YTPlayer,
 } from "./lib/youtube-player.tsx";
 import {
@@ -149,28 +149,10 @@ function DownloadForm({
   const [endTime, setEndTime] = useState("");
 
   const [player, setPlayer] = useState<YTPlayer>();
-  const videoId = data.video.youtubeId;
-
-  const playerRef = useCallback(
-    (el: HTMLDivElement) => {
-      let player: YTPlayer | undefined;
-      let disposed = false;
-      createYoutubePlayer({ element: el, videoId }).then((p) => {
-        if (disposed) {
-          p.destroy();
-        } else {
-          player = p;
-          setPlayer(p);
-        }
-      });
-      return () => {
-        disposed = true;
-        player?.destroy();
-        setPlayer(undefined);
-      };
-    },
-    [videoId],
-  );
+  const playerRef = useYoutubePlayerRef({
+    videoId: data.video.youtubeId,
+    setPlayer,
+  });
 
   const downloadMutation = useMutation({
     mutationFn: async (params: {
