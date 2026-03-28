@@ -2,7 +2,7 @@
 // Injected into YouTube embed iframe inside the extension page.
 // Handles postMessage RPC: fetchPlayerApi + chunked download.
 
-import type { RpcRequest, RpcResponse } from "./lib/rpc.ts";
+import type { RpcProgress, RpcRequest, RpcResponse } from "./lib/rpc.ts";
 import type { YouTubeStreamingFormat } from "./lib/youtube.ts";
 import { fetchPlayerApi } from "./lib/youtube.ts";
 
@@ -28,6 +28,7 @@ async function downloadBytes(
   url: string,
   start: number,
   end: number,
+  onProgress?: (bytesReceived: number, totalBytes: number) => void,
 ): Promise<Uint8Array> {
   const totalSize = end - start;
   const numChunks = Math.ceil(totalSize / CHUNK_SIZE);
@@ -51,10 +52,15 @@ async function downloadBytes(
       data.set(value, offset);
       offset += value.length;
     }
+    onProgress?.(offset, totalSize);
   }
 
   return data;
 }
+
+type HandlerCtx = {
+  sendProgress: (bytesReceived: number, totalBytes: number) => void;
+};
 
 // --- RPC handlers ---
 // Exported for typeof only — content script is a separate bundle,
@@ -65,7 +71,10 @@ export const contentRpcHandlers = {
     return await fetchPlayerApi(params.videoId);
   },
 
-  async downloadFormat(params: { videoId: string; itag: number }) {
+  async downloadFormat(
+    params: { videoId: string; itag: number },
+    ctx: HandlerCtx,
+  ) {
     const { result, format } = await resolveFormatUrl(
       params.videoId,
       params.itag,
@@ -73,7 +82,7 @@ export const contentRpcHandlers = {
     const filesize = format.contentLength;
     if (!filesize) throw new Error("Unknown file size");
 
-    const data = await downloadBytes(format.url, 0, filesize);
+    const data = await downloadBytes(format.url, 0, filesize, ctx.sendProgress);
     const ext = format.mimeType.split(";")[0]?.split("/")[1] ?? "webm";
     const filename = `${result.video.title}.${ext}`;
 
@@ -97,16 +106,24 @@ export const contentRpcHandlers = {
   },
 
   /** Download a specific byte range of a format (for fast-seek cluster data). */
-  async downloadRange(params: {
-    format: YouTubeStreamingFormat;
-    start: number;
-    end?: number;
-  }) {
+  async downloadRange(
+    params: {
+      format: YouTubeStreamingFormat;
+      start: number;
+      end?: number;
+    },
+    ctx: HandlerCtx,
+  ) {
     const filesize = params.format.contentLength;
     if (!filesize) throw new Error("Unknown file size");
 
     const end = params.end ?? filesize;
-    const data = await downloadBytes(params.format.url, params.start, end);
+    const data = await downloadBytes(
+      params.format.url,
+      params.start,
+      end,
+      ctx.sendProgress,
+    );
 
     return { data: data.buffer as ArrayBuffer };
   },
@@ -138,8 +155,22 @@ window.addEventListener("message", async (e: MessageEvent) => {
     return;
   }
 
+  const sendProgress = (bytesReceived: number, totalBytes: number) => {
+    window.parent.postMessage(
+      {
+        type: "ytdl-progress",
+        id,
+        bytesReceived,
+        totalBytes,
+      } satisfies RpcProgress,
+      "*",
+    );
+  };
+
   try {
-    const result = await handler(params as never);
+    const result = await (
+      handler as (p: unknown, ctx: HandlerCtx) => Promise<unknown>
+    )(params, { sendProgress });
     const response: RpcResponse = { type: "ytdl-response", id, result };
     // Transfer ArrayBuffers if present (zero-copy)
     const transferables: Transferable[] = [];

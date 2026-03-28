@@ -14,6 +14,13 @@ export interface RpcResponse {
   error?: string;
 }
 
+export interface RpcProgress {
+  type: "ytdl-progress";
+  id: string;
+  bytesReceived: number;
+  totalBytes: number;
+}
+
 // --- Typed proxy ---
 
 type HandlerParams<H> = H extends (params: infer P) => Promise<unknown>

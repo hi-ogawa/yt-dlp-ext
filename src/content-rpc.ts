@@ -2,14 +2,28 @@
 // inside a YouTube embed iframe.
 
 import type { contentRpcHandlers } from "./content.ts";
-import type { RpcClient, RpcRequest, RpcResponse } from "./lib/rpc.ts";
+import type {
+  RpcClient,
+  RpcProgress,
+  RpcRequest,
+  RpcResponse,
+} from "./lib/rpc.ts";
 import { createRpcProxy, once } from "./lib/rpc.ts";
 
 export type ContentRpc = RpcClient<typeof contentRpcHandlers>;
 
+export type ContentRpcInit = {
+  rpc: ContentRpc;
+  callWithProgress: <T>(
+    method: string,
+    params: unknown,
+    onProgress: (bytesReceived: number, totalBytes: number) => void,
+  ) => Promise<T>;
+};
+
 export const initContentRpc = once(
   () =>
-    new Promise<ContentRpc>((resolve, reject) => {
+    new Promise<ContentRpcInit>((resolve, reject) => {
       const iframe = document.createElement("iframe");
       iframe.src = "https://www.youtube.com/embed/";
       iframe.style.display = "none";
@@ -35,8 +49,16 @@ export const initContentRpc = once(
     }),
 );
 
-function createIframeRpc(iframe: HTMLIFrameElement): ContentRpc {
+function createIframeRpc(iframe: HTMLIFrameElement): ContentRpcInit {
   function call(method: string, params: unknown): Promise<unknown> {
+    return callWithProgress(method, params, () => {});
+  }
+
+  function callWithProgress<T>(
+    method: string,
+    params: unknown,
+    onProgress: (bytesReceived: number, totalBytes: number) => void,
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
       const id = crypto.randomUUID();
       const ac = new AbortController();
@@ -44,11 +66,17 @@ function createIframeRpc(iframe: HTMLIFrameElement): ContentRpc {
       window.addEventListener(
         "message",
         (e: MessageEvent) => {
-          const msg = e.data as RpcResponse;
-          if (msg?.type !== "ytdl-response" || msg.id !== id) return;
-          ac.abort();
-          if (msg.error) reject(new Error(msg.error));
-          else resolve(msg.result);
+          const msg = e.data as RpcResponse | RpcProgress;
+          if (!msg || msg.id !== id) return;
+          if (msg.type === "ytdl-progress") {
+            onProgress(msg.bytesReceived, msg.totalBytes);
+            return;
+          }
+          if (msg.type === "ytdl-response") {
+            ac.abort();
+            if (msg.error) reject(new Error(msg.error));
+            else resolve(msg.result as T);
+          }
         },
         { signal: ac.signal },
       );
@@ -63,5 +91,8 @@ function createIframeRpc(iframe: HTMLIFrameElement): ContentRpc {
     });
   }
 
-  return createRpcProxy<typeof contentRpcHandlers>(call);
+  return {
+    rpc: createRpcProxy<typeof contentRpcHandlers>(call),
+    callWithProgress,
+  };
 }
