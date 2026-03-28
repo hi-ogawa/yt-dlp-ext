@@ -209,13 +209,6 @@ function DownloadForm({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold">{data.video.title}</h1>
-        <p className="text-sm text-muted-foreground">
-          {data.video.channelName}
-        </p>
-      </div>
-
       <div className="relative w-full aspect-video rounded overflow-hidden bg-black">
         <YoutubePlayer
           videoId={data.video.youtubeId}
