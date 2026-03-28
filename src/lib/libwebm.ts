@@ -51,6 +51,19 @@ function getModule(): Promise<EmscriptenModule> {
   return modulePromise;
 }
 
+// C++ exceptions thrown by WASM are raw integer pointers, not Error objects.
+// Wrap them so the worker's catch block serializes a useful message.
+function wrapWasmCall<T>(label: string, fn: () => T): T {
+  try {
+    return fn();
+  } catch (e) {
+    if (e instanceof Error) throw e;
+    throw new Error(
+      `${label} threw WASM exception ptr=${e} (C++ assertion failure)`,
+    );
+  }
+}
+
 /**
  * Parse the EBML header of a WebM file to extract cue points and track info.
  * Original: LibwebmWorker.extractWebmInfo()
@@ -63,7 +76,10 @@ export async function parseMetadata(
   const vec = new mod.embind_Vector();
   vec.resize(buffer.length, 0);
   vec.view().set(buffer);
-  const json = mod.embind_parseMetadataWrapper(vec);
+  const json = wrapWasmCall(
+    `embind_parseMetadataWrapper(buflen=${buffer.length})`,
+    () => mod.embind_parseMetadataWrapper(vec),
+  );
   return JSON.parse(json) as SimpleMetadata;
 }
 
@@ -86,6 +102,9 @@ export async function remux(
   frameVec.resize(frameBuffer.length, 0);
   frameVec.view().set(frameBuffer);
 
-  const resultVec = mod.embind_remuxWrapper(metaVec, frameVec, fixTimestamp);
+  const resultVec = wrapWasmCall(
+    `embind_remuxWrapper(meta=${metadataBuffer.length}, frame=${frameBuffer.length})`,
+    () => mod.embind_remuxWrapper(metaVec, frameVec, fixTimestamp),
+  );
   return new Uint8Array(resultVec.view());
 }

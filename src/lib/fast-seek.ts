@@ -8,7 +8,6 @@
 //   - Binary search instead of linear scan (original used .reverse().find())
 //   - startTime/endTime required (caller provides defaults), original had them optional
 //   - Graceful fallback ({ start: 0 }) instead of tinyassert on missing data
-//   - headerSize() is new (original passed entire initial fetch to remux)
 
 import type { SimpleMetadata } from "@hiogawa/ffmpeg/build/tsc/cpp/ex01-emscripten-types";
 
@@ -99,20 +98,4 @@ export function findContainingRange(
   }
 
   return range;
-}
-
-/**
- * Compute the header size — the number of bytes from the start of the file
- * up to (but not including) the first Cluster element.
- * This is the metadata portion needed for remuxing.
- *
- * New in this port — original passed the entire initial fetch buffer to remux.
- * Trimming to just the metadata avoids sending trailing cluster data as "metadata".
- */
-export function headerSize(metadata: SimpleMetadata): number {
-  const { segment_body_start, cue_points } = metadata;
-  if (!segment_body_start || cue_points.length === 0) return 0;
-  const firstCue = cue_points[0];
-  if (firstCue?.cluster_position === undefined) return 0;
-  return segment_body_start + firstCue.cluster_position;
 }

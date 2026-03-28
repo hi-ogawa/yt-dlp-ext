@@ -9,7 +9,7 @@ import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
-import { findContainingRange, headerSize } from "./lib/fast-seek.ts";
+import { findContainingRange } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
   formatBytes,
@@ -65,7 +65,6 @@ async function downloadFastSeek(opts: {
 
   // 3. Compute byte range from cue points
   const range = findContainingRange(metadata, startTime, endTime);
-  const metaSize = headerSize(metadata);
 
   // 4. Download only the needed clusters
   const clusterData = await rpc.downloadRange({
@@ -75,10 +74,12 @@ async function downloadFastSeek(opts: {
     end: range.end,
   });
 
-  // 5. Remux: combine header metadata + partial clusters into valid WebM
-  const metadataSlice = headerResult.data.slice(0, metaSize);
+  // 5. Remux: combine header metadata + partial clusters into valid WebM.
+  // Pass the full header fetch as metadata — remuxWrapper re-parses it internally,
+  // and cutting it to just the pre-cluster bytes causes the C++ parser to return
+  // a non-ok status (buffer ends mid-parse). Original also passed the full fetch.
   const remuxedData = await workerRpc.remuxWebm({
-    metadataBuffer: metadataSlice,
+    metadataBuffer: headerResult.data,
     frameBuffer: clusterData.data,
   });
 
