@@ -22,12 +22,12 @@ Chrome extension + web app for downloading YouTube audio directly from the brows
 - [x] feat: web app deploy — host UI on Cloudflare Workers, extension as backend — [task doc](./tasks/2026-03-28-web-app.md)
 - [x] chore: ~~publish extension to Chrome Web Store~~ — instead, link directly to zip download + drag-and-drop install from the web app (no store review needed)
 - [x] chore: rework README and architecture.md for web app architecture
+- [x] chore: split build — separate web and extension targets, remove extension page (`src/index.html`)
+- [x] test: restructure e2e for web app (currently tests extension page directly)
+- [x] chore: background action opens hosted web app URL instead of extension page
 
 ## TODO
 
-- [ ] chore: background action opens hosted web app URL instead of extension page
-- [ ] chore: split build — separate web and extension targets, remove extension page (`src/index.html`)
-- [ ] test: restructure e2e for web app (currently tests extension page directly)
 - [ ] feat: extension detection UX — show soft CTA ("Is extension installed?") after ~2s instead of hard error, link to zip download; `document_start` already gets detection under 500ms when installed
 - [ ] feat: trimming — live player seek UI — [task doc](./tasks/2026-03-28-trim-ui-with-player.md)
 - [ ] feat: download progress — show chunk progress during download
