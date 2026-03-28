@@ -11,9 +11,16 @@ import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
+  loadYoutubeIframeApi,
+  useYoutubePlayerRef,
+  type YTPlayer,
+} from "./lib/youtube-player.tsx";
+import {
   formatBytes,
   formatLabel,
+  formatTime,
   isAudioOnly,
+  parseTime,
   parseVideoId,
 } from "./lib/youtube-utils.ts";
 import type { PlayerApiResult } from "./lib/youtube.ts";
@@ -21,17 +28,6 @@ import { initWorkerRpc } from "./worker-rpc.ts";
 import "./styles.css";
 
 const queryClient = new QueryClient();
-
-// --- Helpers ---
-
-/** Parse time string like "1:23" or "1:02:30" to seconds. */
-function parseTime(s: string): number {
-  const parts = s.split(":").map(Number);
-  if (parts.some(isNaN)) return 0;
-  if (parts.length === 3) return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
-  if (parts.length === 2) return parts[0]! * 60 + parts[1]!;
-  return parts[0]!;
-}
 
 // --- Components ---
 
@@ -152,6 +148,12 @@ function DownloadForm({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
 
+  const [player, setPlayer] = useState<YTPlayer>();
+  const playerRef = useYoutubePlayerRef({
+    videoId: data.video.youtubeId,
+    setPlayer,
+  });
+
   const downloadMutation = useMutation({
     mutationFn: async (params: {
       itag: number;
@@ -215,18 +217,9 @@ function DownloadForm({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold">{data.video.title}</h1>
-        <p className="text-sm text-muted-foreground">
-          {data.video.channelName}
-        </p>
+      <div className="relative w-full aspect-video rounded overflow-hidden bg-black">
+        <div ref={playerRef} className="absolute inset-0" />
       </div>
-
-      <img
-        src={`https://i.ytimg.com/vi/${data.video.youtubeId}/hqdefault.jpg`}
-        alt=""
-        className="w-full rounded"
-      />
 
       <div className="space-y-1.5">
         <label className="block text-sm font-medium">Title</label>
@@ -270,7 +263,25 @@ function DownloadForm({
           ] as const
         ).map(([label, value, setValue]) => (
           <div key={label} className="space-y-1.5">
-            <label className="block text-sm font-medium">{label}</label>
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-medium">{label}</label>
+              <button
+                type="button"
+                disabled={!player}
+                onClick={() => setValue(formatTime(player!.getCurrentTime()))}
+                className="rounded px-1 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40"
+              >
+                now
+              </button>
+              <button
+                type="button"
+                disabled={!player || !value}
+                onClick={() => player!.seekTo(parseTime(value))}
+                className="rounded px-1 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40"
+              >
+                seek
+              </button>
+            </div>
             <input
               type="text"
               value={value}
@@ -358,3 +369,6 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// preload youtube ifram api script
+loadYoutubeIframeApi();
