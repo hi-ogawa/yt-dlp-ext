@@ -1,0 +1,2 @@
+/*
+  Content-Security-Policy: script-src 'self' 'wasm-unsafe-eval'; object-src 'self'

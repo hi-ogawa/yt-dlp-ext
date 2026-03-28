@@ -98,6 +98,7 @@ export default defineConfig({
         const dest = resolve(mainRepo, "dist/ext-dev");
         mkdirSync(dest, { recursive: true });
         cpSync(outDir, dest, { recursive: true });
+        rmSync(resolve(dest, "_headers"), { force: true });
         console.log(`[dev] Copied extension → ${dest}`);
       }
     },
