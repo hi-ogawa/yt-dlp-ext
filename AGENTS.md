@@ -47,7 +47,7 @@ Web app + Chrome extension (MV3) for downloading YouTube audio.
 
 ## E2E Tests
 
-Extension tests load the built extension in a real Chromium instance. **Must run `pnpm build-ext` before `pnpm test-e2e`**.
+Tests use a Playwright `webServer` (Vite dev server) for the web app UI, and load the built extension via persistent Chromium context. `pnpm test-e2e` runs `build-ext` automatically before launching.
 
 ## Git Workflow
 

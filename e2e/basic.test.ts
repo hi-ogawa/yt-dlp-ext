@@ -1,28 +1,25 @@
 import { expect } from "@playwright/test";
 import { setupPageLogging, test, TEST_VIDEO_ID } from "./helper.ts";
 
-test("extension page renders with search form", async ({
-  page,
-  extensionId,
-}) => {
-  await page.goto(`chrome-extension://${extensionId}/index.html`);
+test("renders with search form", async ({ page }) => {
+  await page.goto("/");
   await expect(page.locator("text=yt-dlp-ext")).toBeVisible();
   await expect(page.getByText("Video ID")).toBeVisible();
   await expect(page.getByPlaceholder("ID or URL")).toBeVisible();
   await expect(page.getByRole("button", { name: "Search" })).toBeVisible();
 });
 
-test("invalid video ID shows error toast", async ({ page, extensionId }) => {
-  await page.goto(`chrome-extension://${extensionId}/index.html`);
+test("invalid video ID shows error toast", async ({ page }) => {
+  await page.goto("/");
   await page.getByPlaceholder("ID or URL").fill("invalid");
   await page.getByRole("button", { name: "Search" }).click();
   await expect(page.getByText("Invalid video ID or URL")).toBeVisible();
 });
 
-test("search video and download audio @yt", async ({ page, extensionId }) => {
+test("search video and download audio @yt", async ({ page }) => {
   setupPageLogging(page);
 
-  await page.goto(`chrome-extension://${extensionId}/index.html`);
+  await page.goto("/");
 
   // Search for video
   await page.getByPlaceholder("ID or URL").fill(TEST_VIDEO_ID);
@@ -48,13 +45,10 @@ test("search video and download audio @yt", async ({ page, extensionId }) => {
   await expect(page.getByText("Downloaded")).toBeVisible({ timeout: 60_000 });
 });
 
-test("search video and download trimmed audio @yt", async ({
-  page,
-  extensionId,
-}) => {
+test("search video and download trimmed audio @yt", async ({ page }) => {
   setupPageLogging(page);
 
-  await page.goto(`chrome-extension://${extensionId}/index.html`);
+  await page.goto("/");
 
   // Search for video
   await page.getByPlaceholder("ID or URL").fill(TEST_VIDEO_ID);
