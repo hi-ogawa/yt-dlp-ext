@@ -32,6 +32,7 @@ Chrome extension + web app for downloading YouTube audio directly from the brows
 - [ ] feat: trimming — live player seek UI — [task doc](./tasks/2026-03-28-trim-ui-with-player.md)
 - [ ] feat: download progress — show chunk progress during download
 - [ ] feat: fast-seek download — skip unnecessary bytes when trimming — [task doc](./tasks/2026-03-25-fast-seek-download.md)
+- [ ] refactor: split src/index.tsx
 
 ## Backlog
 
