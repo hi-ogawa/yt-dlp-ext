@@ -93,25 +93,20 @@ export const contentRpcHandlers = {
     const end = Math.min(params.bytes, filesize);
     const data = await downloadBytes(format.url, 0, end);
 
-    return {
-      data: data.buffer as ArrayBuffer,
-      filesize,
-    };
+    return { data: data.buffer as ArrayBuffer, format };
   },
 
   /** Download a specific byte range of a format (for fast-seek cluster data). */
   async downloadRange(params: {
-    videoId: string;
-    itag: number;
+    format: YouTubeStreamingFormat;
     start: number;
     end?: number;
   }) {
-    const { format } = await resolveFormatUrl(params.videoId, params.itag);
-    const filesize = format.contentLength;
+    const filesize = params.format.contentLength;
     if (!filesize) throw new Error("Unknown file size");
 
     const end = params.end ?? filesize;
-    const data = await downloadBytes(format.url, params.start, end);
+    const data = await downloadBytes(params.format.url, params.start, end);
 
     return { data: data.buffer as ArrayBuffer };
   },

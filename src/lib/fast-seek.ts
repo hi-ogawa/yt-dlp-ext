@@ -134,10 +134,9 @@ export async function downloadFastSeek(opts: {
   // 3. Compute byte range from cue points
   const range = findContainingRange(metadata, startTime, endTime);
 
-  // 4. Download only the needed clusters
+  // 4. Download only the needed clusters (reuse format from step 1 — no second fetchPlayerApi)
   const clusterData = await rpc.downloadRange({
-    videoId,
-    itag,
+    format: headerResult.format,
     start: range.start,
     end: range.end,
   });
