@@ -10,7 +10,7 @@ import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
 import { useTheme } from "./lib/theme.ts";
-import { useYouTubePlayer } from "./lib/youtube-player.ts";
+import { YoutubePlayer, type YTPlayer } from "./lib/youtube-player.tsx";
 import {
   formatBytes,
   formatLabel,
@@ -144,7 +144,7 @@ function DownloadForm({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
 
-  const { ref: playerRef, player } = useYouTubePlayer(data.video.youtubeId);
+  const [player, setPlayer] = useState<YTPlayer>();
 
   const downloadMutation = useMutation({
     mutationFn: async (params: {
@@ -217,7 +217,11 @@ function DownloadForm({
       </div>
 
       <div className="relative w-full aspect-video rounded overflow-hidden bg-black">
-        <div ref={playerRef} className="absolute inset-0" />
+        <YoutubePlayer
+          videoId={data.video.youtubeId}
+          onReady={setPlayer}
+          className="absolute inset-0"
+        />
       </div>
 
       <div className="space-y-1.5">
