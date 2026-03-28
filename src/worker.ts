@@ -16,6 +16,7 @@ export const workerRpcHandlers = {
   async convertWebmToOpus(params: {
     webmData: ArrayBuffer;
     metadata: MetadataTags;
+    // not used since trim delgates to libwebm fast-seek
     trim?: { start?: number; end?: number };
   }) {
     const input = new Input({

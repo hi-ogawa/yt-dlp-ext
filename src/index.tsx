@@ -217,9 +217,6 @@ function DownloadForm({
       endTime?: number;
     }) => {
       const videoId = data.video.youtubeId;
-      const hasTrim =
-        params.startTime !== undefined || params.endTime !== undefined;
-
       const trim =
         params.startTime !== undefined || params.endTime !== undefined
           ? { start: params.startTime, end: params.endTime }
@@ -228,7 +225,7 @@ function DownloadForm({
       const workerRpc = await initWorkerRpc();
 
       let webmData: ArrayBuffer;
-      if (hasTrim) {
+      if (trim) {
         // Fast-seek: download only the needed byte ranges
         webmData = await downloadFastSeek({
           rpc,
