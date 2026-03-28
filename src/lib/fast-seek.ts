@@ -11,7 +11,7 @@
 
 import type { SimpleMetadata } from "@hiogawa/ffmpeg/build/tsc/cpp/ex01-emscripten-types";
 import type { ContentRpc } from "../content-rpc.ts";
-import type { initWorkerRpc } from "../worker-rpc.ts";
+import type { WorkerRpc } from "../worker-rpc.ts";
 
 interface ByteRange {
   /** Absolute byte offset to start downloading (inclusive). */
@@ -109,7 +109,7 @@ const HEADER_FETCH_SIZE = 512 * 1024;
 /** Fast-seek download: fetch only the byte ranges containing the requested time span. */
 export async function downloadFastSeek(opts: {
   rpc: ContentRpc;
-  workerRpc: Awaited<ReturnType<typeof initWorkerRpc>>;
+  workerRpc: WorkerRpc;
   videoId: string;
   itag: number;
   startTime: number;
