@@ -28,7 +28,7 @@ Chrome extension + web app for downloading YouTube audio directly from the brows
 - [ ] chore: background action opens hosted web app URL instead of extension page
 - [ ] chore: split build — separate web and extension targets, remove extension page (`src/index.html`)
 - [ ] test: restructure e2e for web app (currently tests extension page directly)
-- [ ] feat: extension detection UX — faster detection (dedicated content script ping instead of waiting for full YouTube embed), link to extension zip download
+- [ ] feat: extension detection UX — show soft CTA ("Is extension installed?") after ~2s instead of hard error, link to zip download; `document_start` already gets detection under 500ms when installed
 - [ ] feat: trimming — live player seek UI — [task doc](./tasks/2026-03-28-trim-ui-with-player.md)
 
 ### Other
