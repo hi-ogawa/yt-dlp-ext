@@ -9,44 +9,25 @@ yt-dlp-ext is a web app + Chrome extension for downloading YouTube audio.
 
 The web app lives on a real HTTP origin, so YouTube player embeds and all browser APIs work without restriction. The extension's only job is providing YouTube access.
 
-## Problem: POT
+## Components
 
-```
-Extension page (index.html)     Content script (content.ts)        Worker (worker.ts)
-React UI, orchestration          YouTube iframe, MAIN world         Web Worker thread
-                                 same-origin YouTube access
-     │                                │                                  │
-     │  postMessage (iframe)          │                                  │
-     ├───────────────────────────────►│                                  │
-     │◄───────────────────────────────┤                                  │
-     │                                │                                  │
-     │  postMessage (worker)                                             │
-     ├──────────────────────────────────────────────────────────────────►│
-     │◄──────────────────────────────────────────────────────────────────┤
-     │                                                                   │
-     │                                                    mediabunny     │
-     │                                                    libwebm WASM   │
+### Web app (`src/index.tsx`)
 
-Background (background.ts) — just opens extension page on action click
-```
-
-### Extension page (`src/index.tsx`)
-
-React app. Orchestrates all flows. Calls content script RPCs for network access and worker RPCs for processing.
+React app hosted on Cloudflare Workers. Orchestrates all flows. Calls content script RPCs for network access and worker RPCs for audio processing.
 
 ### Content script (`src/content.ts`)
 
-Injected into a hidden `<iframe src="https://www.youtube.com/embed/">` embedded by the extension page. Runs in MAIN world with `all_frames: true`. Has same-origin access to YouTube — can call `youtubei/v1/player` and fetch from YouTube's CDN via Range requests.
+Injected into a hidden `<iframe src="https://www.youtube.com/embed/">` created by the web app. Runs in MAIN world with `all_frames: true`. Has same-origin access to YouTube — can call `youtubei/v1/player` and fetch from YouTube's CDN via Range requests.
 
 RPC methods:
 
-| Method                | What it does                                                   |
-| --------------------- | -------------------------------------------------------------- |
-| `getStreamingFormats` | Calls YouTube player API, returns video metadata + format list |
-| `downloadFormat`      | Downloads entire file via chunked 5MB Range requests           |
-| `downloadHeader`      | Downloads first N bytes (for WebM header/cue parsing)          |
-| `downloadRange`       | Downloads a specific byte range (for fast-seek clusters)       |
-| `fetchThumbnail`      | Fetches thumbnail JPEG from `i.ytimg.com`                      |
+| Method                | What it does                                                                    |
+| --------------------- | ------------------------------------------------------------------------------- |
+| `getStreamingFormats` | Calls YouTube player API, returns video metadata + format list                  |
+| `downloadFormat`      | Downloads entire file via chunked 5MB Range requests                            |
+| `downloadHeader`      | Downloads first N bytes (for WebM header/cue parsing); returns format for reuse |
+| `downloadRange`       | Downloads a specific byte range (for fast-seek clusters)                        |
+| `fetchThumbnail`      | Fetches thumbnail JPEG from `i.ytimg.com`                                       |
 
 ### Worker (`src/worker.ts`)
 
@@ -59,6 +40,10 @@ RPC methods:
 | `convertWebmToOpus` | mediabunny: WebM → Opus with metadata (title/artist/album/cover art) |
 | `parseWebmHeader`   | libwebm WASM: parse EBML header, extract cue points                  |
 | `remuxWebm`         | libwebm WASM: combine metadata + partial clusters → valid WebM       |
+
+### Background (`src/background.ts`)
+
+Opens the hosted web app URL when the extension action is clicked.
 
 ### RPC framework (`src/lib/rpc.ts`, `src/content-rpc.ts`, `src/worker-rpc.ts`)
 
@@ -73,7 +58,7 @@ Both sides signal readiness with `{ type: "ytdl-ready" }` on init.
 ### Full download (no trim)
 
 ```
-Page                          Content script              Worker
+Web app                       Content script              Worker
  │                                 │                         │
  │ getStreamingFormats(videoId)    │                         │
  │───────────────────────────────►│                         │
@@ -99,12 +84,12 @@ Page                          Content script              Worker
 ### Fast-seek download (with trim)
 
 ```
-Page                          Content script              Worker
+Web app                       Content script              Worker
  │                                 │                         │
  │ downloadHeader(512KB)           │                         │
  │───────────────────────────────►│                         │
  │              Range: bytes=0-524287                         │
- │◄── ArrayBuffer (header) ───────┤                         │
+ │◄── { data, format } ───────────┤                         │
  │                                                           │
  │ parseWebmHeader(headerData)                               │
  │──────────────────────────────────────────────────────────►│
@@ -114,17 +99,17 @@ Page                          Content script              Worker
  │ findContainingRange(metadata, startTime, endTime)         │
  │ → { start, end } byte offsets (local computation)         │
  │                                                           │
- │ downloadRange(start, end)       │                         │
+ │ downloadRange(format, start, end)                         │
  │───────────────────────────────►│                         │
  │              Range: bytes=start-end                        │
  │◄── ArrayBuffer (clusters) ─────┤                         │
  │                                                           │
- │ remuxWebm(metadataSlice, clusterData)                     │
+ │ remuxWebm(headerData, clusterData)                        │
  │──────────────────────────────────────────────────────────►│
  │                                          libwebm WASM remux
  │◄── ArrayBuffer (valid WebM) ─────────────────────────────┤
  │                                                           │
- │ convertWebmToOpus(remuxedWebm, metadata)                  │
+ │ convertWebmToOpus(remuxedWebm, metadata, trim)            │
  │──────────────────────────────────────────────────────────►│
  │                                          mediabunny WebM→Opus
  │◄── ArrayBuffer (Opus) ───────────────────────────────────┤
@@ -132,7 +117,7 @@ Page                          Content script              Worker
  │ blob → <a>.click() → Downloads/
 ```
 
-For a 1-hour file trimmed to 30 seconds: downloads ~512KB header + ~1% of clusters instead of the full file.
+For a 1-hour file trimmed to 30 seconds: downloads ~512KB header + ~1% of clusters instead of the full file. `format` returned by `downloadHeader` is reused by `downloadRange` — no second `fetchPlayerApi` call.
 
 ## Iframe trick
 
@@ -145,24 +130,6 @@ The `/embed/` endpoint is used because it allows framing (no `X-Frame-Options` b
 YouTube's WEB client requires POT (Proof of Origin Token, generated by botguard JS). Mobile clients (ANDROID_VR) don't — mobile apps have their own attestation, so YouTube doesn't layer botguard on top.
 
 The content script calls `youtubei/v1/player` with ANDROID_VR client headers. `visitorData` is extracted from `ytcfg` on the embed page. This is fragile — YouTube can break it by requiring POT for mobile clients.
-
-## Data flow
-
-```
-Web app (https://yt-dlp-ext.hiro18181.workers.dev/)
-  │
-  ├── creates hidden <iframe src="youtube.com/embed/">
-  │     └── content script injected (MAIN world, same-origin)
-  │           ├── fetchPlayerApi() — ANDROID_VR headers, no POT
-  │           └── downloadFormat() — chunked range fetch
-  │
-  ├── postMessage RPC
-  │     request:  { type: "ytdl-request", method, params }
-  │     response: { type: "ytdl-response", result/error }
-  │
-  └── Web Worker (mediabunny)
-        └── convertWebmToOpus() — remux + metadata + trim
-```
 
 ## Extension detection
 

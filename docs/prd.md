@@ -33,7 +33,7 @@ Chrome extension + web app for downloading YouTube audio directly from the brows
 
 - [ ] feat: download progress — show chunk progress during download
 - [ ] refactor: split src/index.tsx
-- [ ] refactor: fast-seek double `fetchPlayerApi` — `downloadHeader` and `downloadRange` each call `resolveFormatUrl()` independently (youtube-dl-web-v2 had the same pattern)
+- [ ] fix: detect version mismatch between web and ext
 
 ## Backlog
 
