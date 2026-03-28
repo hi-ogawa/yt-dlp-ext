@@ -88,7 +88,11 @@ function DownloadPage() {
       </form>
 
       {rpcQuery.isError && (
-        <p className="text-sm text-red-500">Failed to connect to YouTube.</p>
+        <p className="text-sm text-red-500">
+          {rpcQuery.error instanceof Error
+            ? rpcQuery.error.message
+            : "Failed to connect to YouTube."}
+        </p>
       )}
 
       {searchMutation.isSuccess && (

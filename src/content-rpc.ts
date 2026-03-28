@@ -7,6 +7,8 @@ import { createRpcProxy, once } from "./lib/rpc.ts";
 
 export type ContentRpc = RpcClient<typeof contentRpcHandlers>;
 
+const READY_TIMEOUT_MS = 10_000;
+
 export const initContentRpc = once(
   () =>
     new Promise<ContentRpc>((resolve, reject) => {
@@ -19,10 +21,21 @@ export const initContentRpc = once(
       });
 
       const ac = new AbortController();
+
+      const timeout = setTimeout(() => {
+        ac.abort();
+        reject(
+          new Error(
+            "Extension not detected. Please install the yt-dlp-ext Chrome extension.",
+          ),
+        );
+      }, READY_TIMEOUT_MS);
+
       window.addEventListener(
         "message",
         (e: MessageEvent) => {
           if (e.data?.type === "ytdl-ready") {
+            clearTimeout(timeout);
             ac.abort();
             resolve(createIframeRpc(iframe));
           }
