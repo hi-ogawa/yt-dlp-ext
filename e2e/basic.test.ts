@@ -27,7 +27,6 @@ test("search video and download audio @yt", async ({ page }) => {
 
   // Should show video info and audio format selector
   await expect(page.locator("select")).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator("img[src*=ytimg]")).toBeVisible();
 
   // Verify audio formats are listed (at least one option)
   const options = page.locator("select option");
@@ -60,7 +59,7 @@ test("search video and download trimmed audio @yt", async ({ page }) => {
   await inputs.first().fill("0:00");
   await inputs.last().fill("0:10");
 
-  // Download
+  // Download (fast-seek path)
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download" }).click();
   const download = await downloadPromise;

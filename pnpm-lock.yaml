@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@hiogawa/ffmpeg':
+        specifier: 1.0.0-pre.6
+        version: 1.0.0-pre.6
       '@tanstack/react-query':
         specifier: ^5.91.3
         version: 5.95.2(react@19.2.4)
@@ -301,6 +304,10 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
+
+  '@hiogawa/ffmpeg@1.0.0-pre.6':
+    resolution: {integrity: sha512-Bwa9eDf5h9vRKikPjHBjb8IYYHU2PRsPFQ8BHxxkTfy1rF2MbbiulAlao6UVhI6EnODN7UqDFMhRjJ+wePdl/g==}
+    hasBin: true
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -2875,6 +2882,8 @@ snapshots:
       react-dom: 19.2.4(react@19.2.4)
 
   '@floating-ui/utils@0.2.11': {}
+
+  '@hiogawa/ffmpeg@1.0.0-pre.6': {}
 
   '@img/colour@1.1.0': {}
 

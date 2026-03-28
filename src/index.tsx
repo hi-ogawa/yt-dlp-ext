@@ -9,6 +9,7 @@ import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
+import { downloadFastSeek } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
   loadYoutubeIframeApi,
@@ -163,24 +164,37 @@ function DownloadForm({
       startTime?: number;
       endTime?: number;
     }) => {
-      const [result, thumbnailData] = await Promise.all([
-        rpc.downloadFormat({
-          videoId: data.video.youtubeId,
-          itag: params.itag,
-        }),
-        rpc.fetchThumbnail({
-          videoId: data.video.youtubeId,
-        }),
-      ]);
-
+      const videoId = data.video.youtubeId;
       const trim =
         params.startTime !== undefined || params.endTime !== undefined
           ? { start: params.startTime, end: params.endTime }
           : undefined;
 
       const workerRpc = await initWorkerRpc();
+
+      let webmData: ArrayBuffer;
+      if (trim) {
+        // Fast-seek: download only the needed byte ranges
+        webmData = await downloadFastSeek({
+          rpc,
+          workerRpc,
+          videoId,
+          itag: params.itag,
+          startTime: params.startTime ?? 0,
+          endTime: params.endTime ?? data.video.duration,
+        });
+      } else {
+        const result = await rpc.downloadFormat({
+          videoId,
+          itag: params.itag,
+        });
+        webmData = result.data;
+      }
+
+      const thumbnailData = await rpc.fetchThumbnail({ videoId });
+
       const opusData = await workerRpc.convertWebmToOpus({
-        webmData: result.data,
+        webmData,
         metadata: {
           title: params.title,
           artist: params.artist,

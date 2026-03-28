@@ -3,7 +3,7 @@ import { createRpcProxy, once } from "./lib/rpc.ts";
 import type { workerRpcHandlers } from "./worker.ts";
 import ConvertWorker from "./worker.ts?worker";
 
-type WorkerRpc = RpcClient<typeof workerRpcHandlers>;
+export type WorkerRpc = RpcClient<typeof workerRpcHandlers>;
 
 export const initWorkerRpc = once(
   () =>
