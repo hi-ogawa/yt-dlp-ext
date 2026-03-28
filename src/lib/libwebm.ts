@@ -25,9 +25,8 @@ import type {
   SimpleMetadata,
 } from "@hiogawa/ffmpeg/build/tsc/cpp/ex01-emscripten-types";
 
-// @ts-ignore — Vite handles CommonJS default export
+// @ts-ignore
 import createModuleRaw from "@hiogawa/ffmpeg/build/emscripten/Release/ex01-emscripten.js";
-// Vite resolves this to a hashed asset URL at build time
 import WASM_URL from "@hiogawa/ffmpeg/build/emscripten/Release/ex01-emscripten.wasm?url";
 
 const createModule = createModuleRaw as unknown as EmscriptenInit;
