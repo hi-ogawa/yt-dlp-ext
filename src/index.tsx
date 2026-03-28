@@ -4,13 +4,17 @@ import {
   useMutation,
   useQuery,
 } from "@tanstack/react-query";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
 import { useTheme } from "./lib/theme.ts";
-import { YoutubePlayer, type YTPlayer } from "./lib/youtube-player.tsx";
+import {
+  createYoutubePlayer,
+  loadYoutubeIframeApi,
+  type YTPlayer,
+} from "./lib/youtube-player.tsx";
 import {
   formatBytes,
   formatLabel,
@@ -145,6 +149,28 @@ function DownloadForm({
   const [endTime, setEndTime] = useState("");
 
   const [player, setPlayer] = useState<YTPlayer>();
+  const videoId = data.video.youtubeId;
+
+  const playerRef = useCallback(
+    (el: HTMLDivElement) => {
+      let player: YTPlayer | undefined;
+      let disposed = false;
+      createYoutubePlayer({ element: el, videoId }).then((p) => {
+        if (disposed) {
+          p.destroy();
+        } else {
+          player = p;
+          setPlayer(p);
+        }
+      });
+      return () => {
+        disposed = true;
+        player?.destroy();
+        setPlayer(undefined);
+      };
+    },
+    [videoId],
+  );
 
   const downloadMutation = useMutation({
     mutationFn: async (params: {
@@ -210,11 +236,7 @@ function DownloadForm({
   return (
     <div className="space-y-4">
       <div className="relative w-full aspect-video rounded overflow-hidden bg-black">
-        <YoutubePlayer
-          videoId={data.video.youtubeId}
-          onReady={setPlayer}
-          className="absolute inset-0"
-        />
+        <div ref={playerRef} className="absolute inset-0" />
       </div>
 
       <div className="space-y-1.5">
@@ -365,3 +387,6 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// preload youtube ifram api script
+loadYoutubeIframeApi();
