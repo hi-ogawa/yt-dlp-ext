@@ -4,7 +4,7 @@ import {
   useMutation,
   useQuery,
 } from "@tanstack/react-query";
-import { StrictMode, useState } from "react";
+import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
@@ -21,6 +21,93 @@ import { initWorkerRpc } from "./worker-rpc.ts";
 import "./styles.css";
 
 const queryClient = new QueryClient();
+
+// --- Helpers ---
+
+/** Parse time string like "1:23" or "1:02:30" to seconds. */
+function parseTime(s: string): number {
+  const parts = s.split(":").map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 3) return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
+  if (parts.length === 2) return parts[0]! * 60 + parts[1]!;
+  return parts[0]!;
+}
+
+/** Format seconds to "m:ss" or "h:mm:ss". */
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0)
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+// --- YouTube Player Hook ---
+
+/**
+ * Controls a YouTube embed iframe via the postMessage API.
+ * Tracks currentTime from periodic infoDelivery events.
+ */
+function useYouTubePlayer(videoId: string) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const currentTimeRef = useRef(0);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    function postToPlayer(data: unknown) {
+      iframe!.contentWindow?.postMessage(
+        JSON.stringify(data),
+        "https://www.youtube.com",
+      );
+    }
+
+    function handleMessage(e: MessageEvent) {
+      if (e.source !== iframe!.contentWindow) return;
+      let data: { event?: string; info?: { currentTime?: number } };
+      try {
+        data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+      } catch {
+        return;
+      }
+      if (
+        (data.event === "infoDelivery" || data.event === "initialDelivery") &&
+        typeof data.info?.currentTime === "number"
+      ) {
+        currentTimeRef.current = data.info.currentTime;
+      }
+    }
+
+    function handleLoad() {
+      postToPlayer({ event: "listening" });
+    }
+
+    window.addEventListener("message", handleMessage);
+    iframe.addEventListener("load", handleLoad);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      iframe.removeEventListener("load", handleLoad);
+    };
+  }, [videoId]);
+
+  const getCurrentTime = () => currentTimeRef.current;
+
+  const seekTo = (seconds: number) => {
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({
+        event: "command",
+        func: "seekTo",
+        args: [seconds, true],
+      }),
+      "https://www.youtube.com",
+    );
+  };
+
+  return { iframeRef, getCurrentTime, seekTo };
+}
 
 // --- Components ---
 
@@ -108,6 +195,9 @@ function DownloadForm({
   const [title, setTitle] = useState(data.video.title);
   const [artist, setArtist] = useState(data.video.channelName);
   const [album, setAlbum] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const player = useYouTubePlayer(data.video.youtubeId);
 
   const downloadMutation = useMutation({
     mutationFn: async (params: {
@@ -115,6 +205,8 @@ function DownloadForm({
       title: string;
       artist: string;
       album?: string;
+      startTime?: number;
+      endTime?: number;
     }) => {
       const [result, thumbnailData] = await Promise.all([
         rpc.downloadFormat({
@@ -125,6 +217,11 @@ function DownloadForm({
           videoId: data.video.youtubeId,
         }),
       ]);
+
+      const trim =
+        params.startTime !== undefined || params.endTime !== undefined
+          ? { start: params.startTime, end: params.endTime }
+          : undefined;
 
       const workerRpc = await initWorkerRpc();
       const opusData = await workerRpc.convertWebmToOpus({
@@ -141,6 +238,7 @@ function DownloadForm({
             },
           ],
         },
+        trim,
       });
 
       const opusFilename = `${params.title}.opus`;
@@ -171,11 +269,14 @@ function DownloadForm({
         </p>
       </div>
 
-      <img
-        src={`https://i.ytimg.com/vi/${data.video.youtubeId}/hqdefault.jpg`}
-        alt=""
-        className="w-full rounded"
-      />
+      <div className="relative aspect-video w-full overflow-hidden rounded">
+        <iframe
+          ref={player.iframeRef}
+          src={`https://www.youtube.com/embed/${data.video.youtubeId}?enablejsapi=1&origin=${encodeURIComponent(location.origin)}`}
+          allow="autoplay; encrypted-media"
+          className="absolute h-full w-full"
+        />
+      </div>
 
       <div className="space-y-1.5">
         <label className="block text-sm font-medium">Title</label>
@@ -211,6 +312,45 @@ function DownloadForm({
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        {(
+          [
+            ["Start time", startTime, setStartTime],
+            ["End time", endTime, setEndTime],
+          ] as const
+        ).map(([label, value, setValue]) => (
+          <div key={label} className="space-y-1.5">
+            <div className="flex items-center gap-1">
+              <label className="text-sm font-medium">{label}</label>
+              <button
+                type="button"
+                className="rounded px-1 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => setValue(formatTime(player.getCurrentTime()))}
+              >
+                use current
+              </button>
+              <button
+                type="button"
+                className="rounded px-1 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  if (value) player.seekTo(parseTime(value));
+                }}
+              >
+                seek
+              </button>
+            </div>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              disabled={downloadMutation.isPending}
+              placeholder="0:00"
+              className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+            />
+          </div>
+        ))}
+      </div>
+
       {audioFormats.length === 0 ? (
         <p className="text-sm text-red-500">No audio formats available.</p>
       ) : (
@@ -239,6 +379,8 @@ function DownloadForm({
                 title,
                 artist,
                 album: album || undefined,
+                startTime: startTime ? parseTime(startTime) : undefined,
+                endTime: endTime ? parseTime(endTime) : undefined,
               })
             }
             disabled={downloadMutation.isPending || downloadMutation.isSuccess}
