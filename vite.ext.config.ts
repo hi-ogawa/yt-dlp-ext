@@ -15,7 +15,6 @@ export default defineConfig({
       build: {
         outDir: "./dist/ext",
         minify: false,
-        copyPublicDir: false,
         rolldownOptions: {
           input: {
             content: "./src/content.ts",
