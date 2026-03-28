@@ -60,7 +60,7 @@ function useYouTubePlayer(videoId: string) {
     function postToPlayer(data: unknown) {
       iframe!.contentWindow?.postMessage(
         JSON.stringify(data),
-        "https://www.youtube-nocookie.com",
+        "https://www.youtube.com",
       );
     }
 
@@ -102,7 +102,7 @@ function useYouTubePlayer(videoId: string) {
         func: "seekTo",
         args: [seconds, true],
       }),
-      "https://www.youtube-nocookie.com",
+      "https://www.youtube.com",
     );
   };
 
@@ -272,7 +272,7 @@ function DownloadForm({
       <div className="relative aspect-video w-full overflow-hidden rounded">
         <iframe
           ref={player.iframeRef}
-          src={`https://www.youtube-nocookie.com/embed/${data.video.youtubeId}?enablejsapi=1&origin=${encodeURIComponent(location.origin)}`}
+          src={`https://www.youtube.com/embed/${data.video.youtubeId}?enablejsapi=1&origin=${encodeURIComponent(location.origin)}`}
           allow="autoplay; encrypted-media"
           className="absolute h-full w-full"
         />

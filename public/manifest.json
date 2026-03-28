@@ -11,11 +11,8 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
-  "permissions": ["storage"],
-  "host_permissions": [
-    "https://www.youtube.com/*",
-    "https://www.youtube-nocookie.com/*"
-  ],
+  "permissions": ["storage", "declarativeNetRequest"],
+  "host_permissions": ["https://www.youtube.com/*"],
   "background": {
     "service_worker": "background.js"
   },
