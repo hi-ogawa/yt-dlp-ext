@@ -1,20 +1,11 @@
-import {
-  QueryClient,
-  QueryClientProvider,
-  useMutation,
-  useQuery,
-} from "@tanstack/react-query";
+import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
 import { downloadFastSeek } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
-import {
-  loadYoutubeIframeApi,
-  useYoutubePlayerRef,
-  type YTPlayer,
-} from "./lib/youtube-player.tsx";
+import { useYoutubePlayerRef, type YTPlayer } from "./lib/youtube-player.tsx";
 import {
   formatBytes,
   formatLabel,
