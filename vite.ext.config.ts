@@ -1,14 +1,6 @@
 import { execSync } from "node:child_process";
-import {
-  cpSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
-import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const git = (cmd: string) => execSync(cmd).toString().trim();
@@ -18,18 +10,10 @@ const buildTime = new Date();
 
 export default defineConfig({
   environments: {
-    client: {
-      build: {
-        outDir: "./dist/ext",
-        minify: false,
-      },
-    },
     page: {
-      consumer: "client",
       build: {
         outDir: "./dist/ext",
         minify: false,
-        emptyOutDir: false,
         copyPublicDir: false,
         rolldownOptions: {
           input: {
@@ -66,16 +50,23 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(buildTime.toISOString()),
     __GIT_REV__: JSON.stringify(rev + dirty),
   },
-  plugins: [react(), tailwindcss()],
   builder: {
     async buildApp(builder) {
-      await builder.build(builder.environments.client);
       await builder.build(builder.environments.page);
       await builder.build(builder.environments.background);
-      const outDir = builder.environments.client.config.build.outDir;
+      const outDir = resolve("dist/ext");
 
-      // Move html from nested path to root
-      rmSync(resolve(outDir, "src"), { force: true, recursive: true });
+      // Copy extension-specific public assets (no _headers — web only)
+      for (const asset of [
+        "manifest.json",
+        "icons",
+        "theme-init.js",
+        "favicon.svg",
+      ]) {
+        cpSync(resolve("public", asset), resolve(outDir, asset), {
+          recursive: true,
+        });
+      }
 
       // Modify manifest for dev builds
       const manifestPath = resolve(outDir, "manifest.json");
@@ -98,7 +89,6 @@ export default defineConfig({
         const dest = resolve(mainRepo, "dist/ext-dev");
         mkdirSync(dest, { recursive: true });
         cpSync(outDir, dest, { recursive: true });
-        rmSync(resolve(dest, "_headers"), { force: true });
         console.log(`[dev] Copied extension → ${dest}`);
       }
     },

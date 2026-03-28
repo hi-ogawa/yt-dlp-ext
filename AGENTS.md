@@ -2,13 +2,16 @@
 
 ## Quick Reference
 
-| Command         | When                    |
-| --------------- | ----------------------- |
-| `pnpm dev`      | Start dev rebuild watch |
-| `pnpm tsc`      | Type check              |
-| `pnpm lint`     | Format + lint           |
-| `pnpm build`    | Build extension         |
-| `pnpm test-e2e` | Run e2e tests           |
+| Command          | When                          |
+| ---------------- | ----------------------------- |
+| `pnpm dev`       | Start web app dev server      |
+| `pnpm build`     | Build web app (`dist/web/`)   |
+| `pnpm dev-ext`   | Start extension rebuild watch |
+| `pnpm build-ext` | Build extension (`dist/ext/`) |
+| `pnpm tsc`       | Type check                    |
+| `pnpm lint`      | Format + lint                 |
+| `pnpm test-e2e`  | Run e2e tests                 |
+| `pnpm release`   | Build web app + deploy        |
 
 ## Key Docs
 
@@ -19,12 +22,12 @@
 
 ## Architecture
 
-Chrome extension (MV3) that downloads YouTube audio. No server — everything runs client-side.
+Web app + Chrome extension (MV3) for downloading YouTube audio.
 
-- **Extension page** (`index.html`) — React UI for searching videos and downloading audio
-- **Content script** (`content.ts`) — MAIN world, `all_frames: true`, injected into YouTube embed iframe within the extension page. Handles YouTube player API calls and chunked audio download via same-origin fetch.
-- **Background** (`background.ts`) — minimal service worker, opens extension page on action click
-- **Communication** — `postMessage` between extension page and iframe content script
+- **Web app** (`index.html` / `src/index.tsx`) — React UI, built to `dist/web/`, deployed to Cloudflare Workers
+- **Content script** (`content.ts`) — MAIN world, `all_frames: true`, injected into YouTube embed iframe created by the web app. Handles YouTube player API calls and chunked audio download via same-origin fetch.
+- **Background** (`background.ts`) — minimal service worker, opens web app URL on action click
+- **Communication** — `postMessage` between web app and iframe content script
 
 ## Conventions
 
@@ -37,14 +40,14 @@ Chrome extension (MV3) that downloads YouTube audio. No server — everything ru
 ## Agent Rules
 
 - **Never run long-running tasks** (dev servers, watch modes, etc.)
-- Use `pnpm build` to verify code, not `pnpm dev`
-- User runs `pnpm dev` manually in their terminal
+- Use `pnpm build` to verify web app code, `pnpm build-ext` to verify extension code
+- User runs `pnpm dev` / `pnpm dev-ext` manually in their terminal
 - **Never use `--` to pass args to pnpm scripts.**
 - **Run `pnpm lint` before every commit**
 
 ## E2E Tests
 
-Extension tests load the built extension in a real Chromium instance. **Must run `pnpm build` before `pnpm test-e2e`**.
+Extension tests load the built extension in a real Chromium instance. **Must run `pnpm build-ext` before `pnpm test-e2e`**.
 
 ## Git Workflow
 

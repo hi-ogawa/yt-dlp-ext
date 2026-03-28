@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "prepare": "vp config",
-    "dev": "DEV_EXT=1 node --watch --watch-path=./src scripts/dev.ts",
-    "build": "vite build -c vite.ext.config.ts && cd dist/ext && zip -r ../yt-dlp-ext.zip . --exclude '_headers'",
+    "dev": "vite -c vite.web.config.ts",
+    "build": "vite build -c vite.web.config.ts",
+    "dev-ext": "DEV_EXT=1 node --watch --watch-path=./src scripts/dev.ts",
+    "build-ext": "vite build -c vite.ext.config.ts && cd dist/ext && zip -r ../yt-dlp-ext.zip .",
     "tsc": "tsc -b",
     "lint": "vp fmt && knip --fix",
     "lint-check": "vp fmt --check && knip",
