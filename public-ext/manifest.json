@@ -16,7 +16,7 @@
   "action": {},
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
+      "matches": ["https://www.youtube.com/embed/"],
       "js": ["content.js"],
       "world": "MAIN",
       "all_frames": true,
