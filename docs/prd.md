@@ -26,16 +26,15 @@ Chrome extension + web app for downloading YouTube audio directly from the brows
 - [x] test: restructure e2e for web app (currently tests extension page directly)
 - [x] chore: background action opens hosted web app URL instead of extension page
 - [x] feat: extension detection UX — show soft CTA ("Is extension installed?") after ~2s instead of hard error, link to zip download; `document_start` already gets detection under 500ms when installed
+- [x] feat: trimming — live player seek UI — [task doc](./tasks/2026-03-28-trim-ui-with-player.md)
+- [x] feat: fast-seek download — skip unnecessary bytes when trimming — [task doc](./tasks/2026-03-25-fast-seek-download.md)
 
 ## TODO
 
-- [ ] feat: trimming — live player seek UI — [task doc](./tasks/2026-03-28-trim-ui-with-player.md)
 - [ ] feat: download progress — show chunk progress during download
-- [ ] feat: fast-seek download — skip unnecessary bytes when trimming — [task doc](./tasks/2026-03-25-fast-seek-download.md)
 - [ ] refactor: split src/index.tsx
+- [ ] refactor: fast-seek double `fetchPlayerApi` — `downloadHeader` and `downloadRange` each call `resolveFormatUrl()` independently (youtube-dl-web-v2 had the same pattern)
 
 ## Backlog
 
 - [ ] feat: support downloading video
-- [ ] fix: fast-seek use-after-transfer — `headerResult.data` transferred to worker via `parseWebmHeader`, then `.slice()`d later for remux
-- [ ] fix: fast-seek double `fetchPlayerApi` — `downloadHeader` and `downloadRange` each call `resolveFormatUrl()` independently (youtube-dl-web-v2 had the same pattern)
