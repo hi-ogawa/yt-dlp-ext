@@ -9,7 +9,7 @@ import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
-import { findContainingRange } from "./lib/fast-seek.ts";
+import { downloadFastSeek } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
   loadYoutubeIframeApi,
@@ -29,58 +29,6 @@ import { initWorkerRpc } from "./worker-rpc.ts";
 import "./styles.css";
 
 const queryClient = new QueryClient();
-
-// Initial header fetch size. WebM headers with Cues are typically small,
-// but YouTube files may have many cue points. 512 KB is generous.
-const HEADER_FETCH_SIZE = 512 * 1024;
-
-/** Fast-seek download: fetch only the byte ranges containing the requested time span. */
-async function downloadFastSeek(opts: {
-  rpc: ContentRpc;
-  workerRpc: Awaited<ReturnType<typeof initWorkerRpc>>;
-  videoId: string;
-  itag: number;
-  startTime: number;
-  endTime: number;
-}): Promise<ArrayBuffer> {
-  const { rpc, workerRpc, videoId, itag, startTime, endTime } = opts;
-
-  // 1. Download header bytes (contains EBML header + Cues)
-  const headerResult = await rpc.downloadHeader({
-    videoId,
-    itag,
-    bytes: HEADER_FETCH_SIZE,
-  });
-
-  // 2. Parse header with libwebm WASM to extract cue points
-  // Clone before sending: workerRpc transfers the ArrayBuffer (neutering it),
-  // but we still need headerResult.data below for the metadataSlice.
-  const metadata = await workerRpc.parseWebmHeader({
-    headerData: headerResult.data.slice(0),
-  });
-
-  // 3. Compute byte range from cue points
-  const range = findContainingRange(metadata, startTime, endTime);
-
-  // 4. Download only the needed clusters
-  const clusterData = await rpc.downloadRange({
-    videoId,
-    itag,
-    start: range.start,
-    end: range.end,
-  });
-
-  // 5. Remux: combine header metadata + partial clusters into valid WebM.
-  // Pass the full header fetch as metadata — remuxWrapper re-parses it internally,
-  // and cutting it to just the pre-cluster bytes causes the C++ parser to return
-  // a non-ok status (buffer ends mid-parse). Original also passed the full fetch.
-  const remuxedData = await workerRpc.remuxWebm({
-    metadataBuffer: headerResult.data,
-    frameBuffer: clusterData.data,
-  });
-
-  return remuxedData;
-}
 
 // --- Components ---
 
