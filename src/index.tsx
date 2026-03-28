@@ -57,8 +57,10 @@ async function downloadFastSeek(opts: {
   });
 
   // 2. Parse header with libwebm WASM to extract cue points
+  // Clone before sending: workerRpc transfers the ArrayBuffer (neutering it),
+  // but we still need headerResult.data below for the metadataSlice.
   const metadata = await workerRpc.parseWebmHeader({
-    headerData: headerResult.data,
+    headerData: headerResult.data.slice(0),
   });
 
   // 3. Compute byte range from cue points
