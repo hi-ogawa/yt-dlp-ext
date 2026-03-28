@@ -4,7 +4,7 @@ import {
   useMutation,
   useQuery,
 } from "@tanstack/react-query";
-import { StrictMode, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
@@ -12,9 +12,16 @@ import { initContentRpc } from "./content-rpc.ts";
 import { findContainingRange } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
 import {
+  loadYoutubeIframeApi,
+  useYoutubePlayerRef,
+  type YTPlayer,
+} from "./lib/youtube-player.tsx";
+import {
   formatBytes,
   formatLabel,
+  formatTime,
   isAudioOnly,
+  parseTime,
   parseVideoId,
 } from "./lib/youtube-utils.ts";
 import type { PlayerApiResult } from "./lib/youtube.ts";
@@ -22,17 +29,6 @@ import { initWorkerRpc } from "./worker-rpc.ts";
 import "./styles.css";
 
 const queryClient = new QueryClient();
-
-// --- Helpers ---
-
-/** Parse time string like "1:23" or "1:02:30" to seconds. */
-function parseTime(s: string): number {
-  const parts = s.split(":").map(Number);
-  if (parts.some(isNaN)) return 0;
-  if (parts.length === 3) return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
-  if (parts.length === 2) return parts[0]! * 60 + parts[1]!;
-  return parts[0]!;
-}
 
 // Initial header fetch size. WebM headers with Cues are typically small,
 // but YouTube files may have many cue points. 512 KB is generous.
@@ -97,6 +93,13 @@ function DownloadPage() {
   const rpc = rpcQuery.data!;
 
   const [input, setInput] = useState("");
+  const [showCta, setShowCta] = useState(false);
+
+  useEffect(() => {
+    if (!rpcQuery.isPending) return;
+    const timer = setTimeout(() => setShowCta(true), 2_000);
+    return () => clearTimeout(timer);
+  }, [rpcQuery.isPending]);
 
   const searchMutation = useMutation({
     mutationFn: (videoId: string) => rpc.getStreamingFormats({ videoId }),
@@ -140,8 +143,31 @@ function DownloadPage() {
         </button>
       </form>
 
+      {showCta && rpcQuery.isPending && (
+        <div className="rounded-md border border-border p-3 text-sm">
+          <p className="font-medium">Extension not detected</p>
+          <p className="mt-1 text-muted-foreground">
+            Install the Chrome extension to use this app.{" "}
+            <a
+              href="https://github.com/hi-ogawa/yt-dlp-ext/releases"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-foreground"
+            >
+              Download zip
+            </a>{" "}
+            then drag and drop it onto{" "}
+            <code className="text-xs">chrome://extensions</code>.
+          </p>
+        </div>
+      )}
+
       {rpcQuery.isError && (
-        <p className="text-sm text-red-500">Failed to connect to YouTube.</p>
+        <p className="text-sm text-red-500">
+          {rpcQuery.error instanceof Error
+            ? rpcQuery.error.message
+            : "Failed to connect to YouTube."}
+        </p>
       )}
 
       {searchMutation.isSuccess && (
@@ -175,6 +201,12 @@ function DownloadForm({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
 
+  const [player, setPlayer] = useState<YTPlayer>();
+  const playerRef = useYoutubePlayerRef({
+    videoId: data.video.youtubeId,
+    setPlayer,
+  });
+
   const downloadMutation = useMutation({
     mutationFn: async (params: {
       itag: number;
@@ -187,6 +219,11 @@ function DownloadForm({
       const videoId = data.video.youtubeId;
       const hasTrim =
         params.startTime !== undefined || params.endTime !== undefined;
+
+      const trim =
+        params.startTime !== undefined || params.endTime !== undefined
+          ? { start: params.startTime, end: params.endTime }
+          : undefined;
 
       const workerRpc = await initWorkerRpc();
 
@@ -225,6 +262,7 @@ function DownloadForm({
             },
           ],
         },
+        trim,
       });
 
       const opusFilename = `${params.title}.opus`;
@@ -248,18 +286,9 @@ function DownloadForm({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold">{data.video.title}</h1>
-        <p className="text-sm text-muted-foreground">
-          {data.video.channelName}
-        </p>
+      <div className="relative w-full aspect-video rounded overflow-hidden bg-black">
+        <div ref={playerRef} className="absolute inset-0" />
       </div>
-
-      <img
-        src={`https://i.ytimg.com/vi/${data.video.youtubeId}/hqdefault.jpg`}
-        alt=""
-        className="w-full rounded"
-      />
 
       <div className="space-y-1.5">
         <label className="block text-sm font-medium">Title</label>
@@ -296,28 +325,42 @@ function DownloadForm({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium">Start time</label>
-          <input
-            type="text"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            disabled={downloadMutation.isPending}
-            placeholder="0:00"
-            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium">End time</label>
-          <input
-            type="text"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            disabled={downloadMutation.isPending}
-            placeholder="0:00"
-            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
+        {(
+          [
+            ["Start time", startTime, setStartTime],
+            ["End time", endTime, setEndTime],
+          ] as const
+        ).map(([label, value, setValue]) => (
+          <div key={label} className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <label className="text-sm font-medium">{label}</label>
+              <button
+                type="button"
+                disabled={!player}
+                onClick={() => setValue(formatTime(player!.getCurrentTime()))}
+                className="rounded px-1 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40"
+              >
+                now
+              </button>
+              <button
+                type="button"
+                disabled={!player || !value}
+                onClick={() => player!.seekTo(parseTime(value))}
+                className="rounded px-1 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40"
+              >
+                seek
+              </button>
+            </div>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              disabled={downloadMutation.isPending}
+              placeholder="0:00"
+              className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+            />
+          </div>
+        ))}
       </div>
 
       {audioFormats.length === 0 ? (
@@ -395,3 +438,6 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// preload youtube ifram api script
+loadYoutubeIframeApi();

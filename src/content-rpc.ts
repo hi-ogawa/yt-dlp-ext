@@ -19,6 +19,7 @@ export const initContentRpc = once(
       });
 
       const ac = new AbortController();
+
       window.addEventListener(
         "message",
         (e: MessageEvent) => {

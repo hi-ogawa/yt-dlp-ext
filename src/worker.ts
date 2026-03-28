@@ -16,6 +16,7 @@ export const workerRpcHandlers = {
   async convertWebmToOpus(params: {
     webmData: ArrayBuffer;
     metadata: MetadataTags;
+    trim?: { start?: number; end?: number };
   }) {
     const input = new Input({
       source: new BlobSource(new Blob([params.webmData])),
@@ -32,6 +33,7 @@ export const workerRpcHandlers = {
       input,
       output,
       tags: params.metadata,
+      trim: params.trim,
     });
     await conversion.execute();
 
