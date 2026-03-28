@@ -1,4 +1,4 @@
-import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
@@ -16,8 +16,6 @@ import {
 } from "./lib/youtube-utils.ts";
 import type { PlayerApiResult } from "./lib/youtube.ts";
 import { initWorkerRpc } from "./worker-rpc.ts";
-
-const queryClient = new QueryClient();
 
 // --- Components ---
 
@@ -364,5 +362,3 @@ export function App() {
     </div>
   );
 }
-
-export { queryClient };
