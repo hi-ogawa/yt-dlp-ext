@@ -10,7 +10,7 @@ const buildTime = new Date();
 
 export default defineConfig({
   environments: {
-    page: {
+    client: {
       build: {
         outDir: "./dist/ext",
         minify: false,
@@ -52,9 +52,9 @@ export default defineConfig({
   },
   builder: {
     async buildApp(builder) {
-      await builder.build(builder.environments.page);
+      await builder.build(builder.environments.client);
       await builder.build(builder.environments.background);
-      const outDir = resolve("dist/ext");
+      const outDir = builder.environments.client.config.build.outDir;
 
       // Copy extension-specific public assets (no _headers — web only)
       for (const asset of [
