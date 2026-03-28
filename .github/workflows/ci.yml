@@ -23,7 +23,7 @@ jobs:
       - run: pnpm lint-check
       - run: pnpm tsc
       - run: pnpm build
-      - run: pnpm bulid-ext
+      - run: pnpm build-ext
       - run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v7
         with:
