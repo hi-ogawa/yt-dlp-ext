@@ -14,16 +14,23 @@ export interface RpcResponse {
   error?: string;
 }
 
-export interface RpcProgress {
-  type: "ytdl-progress";
+export interface RpcCallback<T = unknown> {
+  type: "ytdl-callback";
   id: string;
-  bytesReceived: number;
-  totalBytes: number;
+  payload: T;
+}
+
+export interface RpcCallOptions<TCallback = never> {
+  onCallback?: (cb: TCallback) => void;
 }
 
 // --- Typed proxy ---
 
-type HandlerParams<H> = H extends (params: infer P) => Promise<unknown>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type HandlerParams<H> = H extends (
+  params: infer P,
+  ...args: any[]
+) => Promise<unknown>
   ? P
   : never;
 
@@ -31,20 +38,36 @@ type HandlerResult<H> = H extends (...args: never[]) => Promise<infer R>
   ? R
   : never;
 
-export type RpcClient<Handlers> = {
+export type RpcClient<
+  Handlers,
+  Callbacks extends { [M in keyof Handlers]?: unknown } = {
+    [M in keyof Handlers]?: never;
+  },
+> = {
   [M in keyof Handlers]: (
     params: HandlerParams<Handlers[M]>,
+    opts?: RpcCallOptions<Callbacks[M]>,
   ) => Promise<HandlerResult<Handlers[M]>>;
 };
 
-export function createRpcProxy<Handlers>(
-  call: (method: string, params: unknown) => Promise<unknown>,
-): RpcClient<Handlers> {
-  return new Proxy({} as RpcClient<Handlers>, {
+export function createRpcProxy<
+  Handlers,
+  Callbacks extends { [M in keyof Handlers]?: unknown } = {
+    [M in keyof Handlers]?: never;
+  },
+>(
+  call: (
+    method: string,
+    params: unknown,
+    opts?: RpcCallOptions<unknown>,
+  ) => Promise<unknown>,
+): RpcClient<Handlers, Callbacks> {
+  return new Proxy({} as RpcClient<Handlers, Callbacks>, {
     get(_target, prop) {
       if (typeof prop !== "string" || prop === "then" || prop === "toJSON")
         return undefined;
-      return (params: unknown) => call(prop, params);
+      return (params: unknown, opts?: RpcCallOptions<unknown>) =>
+        call(prop, params, opts);
     },
   });
 }

@@ -10,7 +10,8 @@
 //   - Graceful fallback ({ start: 0 }) instead of tinyassert on missing data
 
 import type { SimpleMetadata } from "@hiogawa/ffmpeg/build/tsc/cpp/ex01-emscripten-types";
-import type { ContentRpcInit } from "../content-rpc.ts";
+import type { ContentRpc } from "../content-rpc.ts";
+import type { ProgressCallback } from "../content.ts";
 import type { WorkerRpc } from "../worker-rpc.ts";
 
 interface ByteRange {
@@ -108,25 +109,16 @@ const HEADER_FETCH_SIZE = 512 * 1024;
 
 /** Fast-seek download: fetch only the byte ranges containing the requested time span. */
 export async function downloadFastSeek(opts: {
-  rpc: ContentRpcInit["rpc"];
-  callWithProgress: ContentRpcInit["callWithProgress"];
+  rpc: ContentRpc;
   workerRpc: WorkerRpc;
   videoId: string;
   itag: number;
   startTime: number;
   endTime: number;
-  onProgress?: (bytesReceived: number, totalBytes: number) => void;
+  onCallback?: (cb: ProgressCallback) => void;
 }): Promise<ArrayBuffer> {
-  const {
-    rpc,
-    callWithProgress,
-    workerRpc,
-    videoId,
-    itag,
-    startTime,
-    endTime,
-    onProgress,
-  } = opts;
+  const { rpc, workerRpc, videoId, itag, startTime, endTime, onCallback } =
+    opts;
 
   // 1. Download header bytes (contains EBML header + Cues)
   const headerResult = await rpc.downloadHeader({
@@ -146,10 +138,9 @@ export async function downloadFastSeek(opts: {
   const range = findContainingRange(metadata, startTime, endTime);
 
   // 4. Download only the needed clusters (reuse format from step 1 — no second fetchPlayerApi)
-  const clusterData = await callWithProgress<{ data: ArrayBuffer }>(
-    "downloadRange",
+  const clusterData = await rpc.downloadRange(
     { format: headerResult.format, start: range.start, end: range.end },
-    onProgress ?? (() => {}),
+    { onCallback },
   );
 
   // 5. Remux: combine header metadata + partial clusters into valid WebM.

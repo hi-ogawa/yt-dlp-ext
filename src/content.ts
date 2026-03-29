@@ -2,7 +2,7 @@
 // Injected into YouTube embed iframe inside the extension page.
 // Handles postMessage RPC: fetchPlayerApi + chunked download.
 
-import type { RpcProgress, RpcRequest, RpcResponse } from "./lib/rpc.ts";
+import type { RpcCallback, RpcRequest, RpcResponse } from "./lib/rpc.ts";
 import type { YouTubeStreamingFormat } from "./lib/youtube.ts";
 import { fetchPlayerApi } from "./lib/youtube.ts";
 
@@ -58,8 +58,14 @@ async function downloadBytes(
   return data;
 }
 
-type HandlerCtx = {
-  sendProgress: (bytesReceived: number, totalBytes: number) => void;
+export type ProgressCallback = {
+  kind: "progress";
+  bytesReceived: number;
+  totalBytes: number;
+};
+
+type HandlerCtx<TCallback = never> = {
+  sendCallback: (payload: TCallback) => void;
 };
 
 // --- RPC handlers ---
@@ -73,7 +79,7 @@ export const contentRpcHandlers = {
 
   async downloadFormat(
     params: { videoId: string; itag: number },
-    ctx: HandlerCtx,
+    ctx: HandlerCtx<ProgressCallback>,
   ) {
     const { result, format } = await resolveFormatUrl(
       params.videoId,
@@ -82,7 +88,9 @@ export const contentRpcHandlers = {
     const filesize = format.contentLength;
     if (!filesize) throw new Error("Unknown file size");
 
-    const data = await downloadBytes(format.url, 0, filesize, ctx.sendProgress);
+    const data = await downloadBytes(format.url, 0, filesize, (b, t) =>
+      ctx.sendCallback({ kind: "progress", bytesReceived: b, totalBytes: t }),
+    );
     const ext = format.mimeType.split(";")[0]?.split("/")[1] ?? "webm";
     const filename = `${result.video.title}.${ext}`;
 
@@ -112,7 +120,7 @@ export const contentRpcHandlers = {
       start: number;
       end?: number;
     },
-    ctx: HandlerCtx,
+    ctx: HandlerCtx<ProgressCallback>,
   ) {
     const filesize = params.format.contentLength;
     if (!filesize) throw new Error("Unknown file size");
@@ -122,7 +130,8 @@ export const contentRpcHandlers = {
       params.format.url,
       params.start,
       end,
-      ctx.sendProgress,
+      (b, t) =>
+        ctx.sendCallback({ kind: "progress", bytesReceived: b, totalBytes: t }),
     );
 
     return { data: data.buffer as ArrayBuffer };
@@ -155,22 +164,21 @@ window.addEventListener("message", async (e: MessageEvent) => {
     return;
   }
 
-  const sendProgress = (bytesReceived: number, totalBytes: number) => {
+  const sendCallback = (payload: unknown) => {
     window.parent.postMessage(
       {
-        type: "ytdl-progress",
+        type: "ytdl-callback",
         id,
-        bytesReceived,
-        totalBytes,
-      } satisfies RpcProgress,
+        payload,
+      } satisfies RpcCallback,
       "*",
     );
   };
 
   try {
     const result = await (
-      handler as (p: unknown, ctx: HandlerCtx) => Promise<unknown>
-    )(params, { sendProgress });
+      handler as (p: unknown, ctx: HandlerCtx<unknown>) => Promise<unknown>
+    )(params, { sendCallback });
     const response: RpcResponse = { type: "ytdl-response", id, result };
     // Transfer ArrayBuffers if present (zero-copy)
     const transferables: Transferable[] = [];

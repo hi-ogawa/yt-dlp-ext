@@ -1,8 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
-import type { ContentRpcInit } from "./content-rpc.ts";
+import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
+import type { ProgressCallback } from "./content.ts";
 import { downloadFastSeek } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
 import { useYoutubePlayerRef, type YTPlayer } from "./lib/youtube-player.tsx";
@@ -108,10 +109,7 @@ function DownloadPage() {
       {searchMutation.isSuccess && (
         <>
           <div className="border-t pt-4" />
-          <DownloadForm
-            data={searchMutation.data}
-            contentRpc={rpcQuery.data!}
-          />
+          <DownloadForm data={searchMutation.data} rpc={rpcQuery.data!} />
         </>
       )}
     </div>
@@ -120,12 +118,11 @@ function DownloadPage() {
 
 function DownloadForm({
   data,
-  contentRpc,
+  rpc,
 }: {
   data: PlayerApiResult;
-  contentRpc: ContentRpcInit;
+  rpc: ContentRpc;
 }) {
-  const { rpc, callWithProgress } = contentRpc;
   const audioFormats = data.streamingFormats
     .filter(isAudioOnly)
     .filter((f) => f.contentLength)
@@ -171,8 +168,13 @@ function DownloadForm({
 
       const workerRpc = await initWorkerRpc();
 
-      const onProgress = (bytesReceived: number, totalBytes: number) => {
-        setDownloadProgress({ bytesReceived, totalBytes });
+      const onCallback = (cb: ProgressCallback) => {
+        if (cb.kind === "progress") {
+          setDownloadProgress({
+            bytesReceived: cb.bytesReceived,
+            totalBytes: cb.totalBytes,
+          });
+        }
       };
 
       setDownloadPhase("downloading");
@@ -181,18 +183,18 @@ function DownloadForm({
         // Fast-seek: download only the needed byte ranges
         webmData = await downloadFastSeek({
           rpc,
-          callWithProgress,
           workerRpc,
           videoId,
           itag: params.itag,
           startTime: params.startTime ?? 0,
           endTime: params.endTime ?? data.video.duration,
-          onProgress,
+          onCallback,
         });
       } else {
-        const result = await callWithProgress<
-          Awaited<ReturnType<typeof rpc.downloadFormat>>
-        >("downloadFormat", { videoId, itag: params.itag }, onProgress);
+        const result = await rpc.downloadFormat(
+          { videoId, itag: params.itag },
+          { onCallback },
+        );
         webmData = result.data;
       }
 
