@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
-import type { DownloadProgress } from "./content.ts";
 import { downloadFastSeek } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
 import { useYoutubePlayerRef, type YTPlayer } from "./lib/youtube-player.tsx";
@@ -168,10 +167,6 @@ function DownloadForm({
 
       const workerRpc = await initWorkerRpc();
 
-      const onProgress = ({ bytesReceived, totalBytes }: DownloadProgress) => {
-        setDownloadProgress({ bytesReceived, totalBytes });
-      };
-
       setDownloadPhase("downloading");
       let webmData: ArrayBuffer;
       if (trim) {
@@ -183,13 +178,13 @@ function DownloadForm({
           itag: params.itag,
           startTime: params.startTime ?? 0,
           endTime: params.endTime ?? data.video.duration,
-          onProgress,
+          onProgress: setDownloadProgress,
         });
       } else {
         const result = await rpc.downloadFormat({
           videoId,
           itag: params.itag,
-          onProgress,
+          onProgress: setDownloadProgress,
         });
         webmData = result.data;
       }
