@@ -2,8 +2,13 @@
 // inside a YouTube embed iframe.
 
 import type { contentRpcHandlers } from "./content.ts";
-import type { RpcClient, RpcRequest, RpcResponse } from "./lib/rpc.ts";
-import { createRpcProxy, once } from "./lib/rpc.ts";
+import type {
+  RpcCallbackInvoke,
+  RpcClient,
+  RpcRequest,
+  RpcResponse,
+} from "./lib/rpc.ts";
+import { createRpcProxy, once, serializeParams } from "./lib/rpc.ts";
 
 export type ContentRpc = RpcClient<typeof contentRpcHandlers>;
 
@@ -40,15 +45,28 @@ function createIframeRpc(iframe: HTMLIFrameElement): ContentRpc {
     return new Promise((resolve, reject) => {
       const id = crypto.randomUUID();
       const ac = new AbortController();
+      const callbacks = new Map<string, (...args: unknown[]) => void>();
+
+      const serializedParams = serializeParams(params, (cbId, fn) => {
+        callbacks.set(cbId, fn);
+      });
 
       window.addEventListener(
         "message",
         (e: MessageEvent) => {
-          const msg = e.data as RpcResponse;
-          if (msg?.type !== "ytdl-response" || msg.id !== id) return;
-          ac.abort();
-          if (msg.error) reject(new Error(msg.error));
-          else resolve(msg.result);
+          const msg = e.data as RpcResponse | RpcCallbackInvoke;
+          if (!msg) return;
+          if (msg.type === "ytdl-callback-invoke") {
+            if (msg.requestId !== id) return;
+            callbacks.get(msg.callbackId)?.(...msg.args);
+            return;
+          }
+          if (msg.type === "ytdl-response") {
+            if (msg.id !== id) return;
+            ac.abort();
+            if (msg.error) reject(new Error(msg.error));
+            else resolve(msg.result);
+          }
         },
         { signal: ac.signal },
       );
@@ -57,7 +75,7 @@ function createIframeRpc(iframe: HTMLIFrameElement): ContentRpc {
         type: "ytdl-request",
         id,
         method,
-        params,
+        params: serializedParams,
       };
       iframe.contentWindow!.postMessage(request, "https://www.youtube.com");
     });

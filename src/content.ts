@@ -2,7 +2,8 @@
 // Injected into YouTube embed iframe inside the extension page.
 // Handles postMessage RPC: fetchPlayerApi + chunked download.
 
-import type { RpcRequest, RpcResponse } from "./lib/rpc.ts";
+import type { RpcCallbackInvoke, RpcRequest, RpcResponse } from "./lib/rpc.ts";
+import { deserializeParams } from "./lib/rpc.ts";
 import type { YouTubeStreamingFormat } from "./lib/youtube.ts";
 import { fetchPlayerApi } from "./lib/youtube.ts";
 
@@ -28,6 +29,7 @@ async function downloadBytes(
   url: string,
   start: number,
   end: number,
+  onProgress?: (bytesReceived: number, totalBytes: number) => void,
 ): Promise<Uint8Array> {
   const totalSize = end - start;
   const numChunks = Math.ceil(totalSize / CHUNK_SIZE);
@@ -37,10 +39,11 @@ async function downloadBytes(
   for (let i = 0; i < numChunks; i++) {
     const chunkStart = start + CHUNK_SIZE * i;
     const chunkEnd = Math.min(start + CHUNK_SIZE * (i + 1), end);
-    const res = await fetch(url, {
-      headers: { range: `bytes=${chunkStart}-${chunkEnd - 1}` },
-    });
-    if (!res.ok && res.status !== 206) {
+    // Use &range= query param instead of Range header to avoid cross-CDN
+    // redirects that YouTube sometimes issues for large files, which fail
+    // CORS because the redirect target doesn't include CORS headers.
+    const res = await fetch(`${url}&range=${chunkStart}-${chunkEnd - 1}`);
+    if (!res.ok) {
       throw new Error(`Download failed: ${res.status}`);
     }
     if (!res.body) throw new Error("No response body");
@@ -51,10 +54,16 @@ async function downloadBytes(
       data.set(value, offset);
       offset += value.length;
     }
+    onProgress?.(offset, totalSize);
   }
 
   return data;
 }
+
+export type DownloadProgress = {
+  bytesReceived: number;
+  totalBytes: number;
+};
 
 // --- RPC handlers ---
 // Exported for typeof only — content script is a separate bundle,
@@ -65,7 +74,11 @@ export const contentRpcHandlers = {
     return await fetchPlayerApi(params.videoId);
   },
 
-  async downloadFormat(params: { videoId: string; itag: number }) {
+  async downloadFormat(params: {
+    videoId: string;
+    itag: number;
+    onProgress?: (progress: DownloadProgress) => void;
+  }) {
     const { result, format } = await resolveFormatUrl(
       params.videoId,
       params.itag,
@@ -73,7 +86,9 @@ export const contentRpcHandlers = {
     const filesize = format.contentLength;
     if (!filesize) throw new Error("Unknown file size");
 
-    const data = await downloadBytes(format.url, 0, filesize);
+    const data = await downloadBytes(format.url, 0, filesize, (b, t) =>
+      params.onProgress?.({ bytesReceived: b, totalBytes: t }),
+    );
     const ext = format.mimeType.split(";")[0]?.split("/")[1] ?? "webm";
     const filename = `${result.video.title}.${ext}`;
 
@@ -101,12 +116,18 @@ export const contentRpcHandlers = {
     format: YouTubeStreamingFormat;
     start: number;
     end?: number;
+    onProgress?: (progress: DownloadProgress) => void;
   }) {
     const filesize = params.format.contentLength;
     if (!filesize) throw new Error("Unknown file size");
 
     const end = params.end ?? filesize;
-    const data = await downloadBytes(params.format.url, params.start, end);
+    const data = await downloadBytes(
+      params.format.url,
+      params.start,
+      end,
+      (b, t) => params.onProgress?.({ bytesReceived: b, totalBytes: t }),
+    );
 
     return { data: data.buffer as ArrayBuffer };
   },
@@ -138,8 +159,22 @@ window.addEventListener("message", async (e: MessageEvent) => {
     return;
   }
 
+  const deserializedParams = deserializeParams(params, (callbackId, args) => {
+    window.parent.postMessage(
+      {
+        type: "ytdl-callback-invoke",
+        requestId: id,
+        callbackId,
+        args,
+      } satisfies RpcCallbackInvoke,
+      "*",
+    );
+  });
+
   try {
-    const result = await handler(params as never);
+    const result = await (handler as (p: unknown) => Promise<unknown>)(
+      deserializedParams,
+    );
     const response: RpcResponse = { type: "ytdl-response", id, result };
     // Transfer ArrayBuffers if present (zero-copy)
     const transferables: Transferable[] = [];

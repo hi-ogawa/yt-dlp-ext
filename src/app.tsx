@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
+import type { DownloadProgress } from "./content.ts";
 import { downloadFastSeek } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
 import { useYoutubePlayerRef, type YTPlayer } from "./lib/youtube-player.tsx";
@@ -108,7 +109,7 @@ function DownloadPage() {
       {searchMutation.isSuccess && (
         <>
           <div className="border-t pt-4" />
-          <DownloadForm data={searchMutation.data} rpc={rpc} />
+          <DownloadForm data={searchMutation.data} rpc={rpcQuery.data!} />
         </>
       )}
     </div>
@@ -124,6 +125,7 @@ function DownloadForm({
 }) {
   const audioFormats = data.streamingFormats
     .filter(isAudioOnly)
+    .filter((f) => f.mimeType.includes("opus"))
     .filter((f) => f.contentLength)
     .sort((a, b) => (b.contentLength ?? 0) - (a.contentLength ?? 0));
 
@@ -142,6 +144,11 @@ function DownloadForm({
     setPlayer,
   });
 
+  const [downloadPhase, setDownloadPhase] = useState<
+    "downloading" | "processing"
+  >();
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress>();
+
   const downloadMutation = useMutation({
     mutationFn: async (params: {
       itag: number;
@@ -159,6 +166,7 @@ function DownloadForm({
 
       const workerRpc = await initWorkerRpc();
 
+      setDownloadPhase("downloading");
       let webmData: ArrayBuffer;
       if (trim) {
         // Fast-seek: download only the needed byte ranges
@@ -169,15 +177,18 @@ function DownloadForm({
           itag: params.itag,
           startTime: params.startTime ?? 0,
           endTime: params.endTime ?? data.video.duration,
+          onProgress: setDownloadProgress,
         });
       } else {
         const result = await rpc.downloadFormat({
           videoId,
           itag: params.itag,
+          onProgress: setDownloadProgress,
         });
         webmData = result.data;
       }
 
+      setDownloadPhase("processing");
       const thumbnailData = await rpc.fetchThumbnail({ videoId });
 
       const opusData = await workerRpc.convertWebmToOpus({
@@ -197,7 +208,8 @@ function DownloadForm({
         trim,
       });
 
-      const opusFilename = `${params.title}.opus`;
+      const parts = [params.artist, params.album, params.title].filter(Boolean);
+      const opusFilename = `${parts.join(" - ")}.opus`;
       const blob = new Blob([opusData]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -213,6 +225,10 @@ function DownloadForm({
     onError: (err) => {
       console.error(err);
       toast.error(String(err));
+    },
+    onSettled: () => {
+      setDownloadPhase(undefined);
+      setDownloadProgress(undefined);
     },
   });
 
@@ -331,7 +347,11 @@ function DownloadForm({
             className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {downloadMutation.isPending
-              ? "Downloading..."
+              ? downloadPhase === "processing"
+                ? "Processing..."
+                : downloadProgress
+                  ? `Downloading... (${Math.round((downloadProgress.bytesReceived / downloadProgress.totalBytes) * 100)}%)`
+                  : "Downloading..."
               : downloadMutation.isSuccess
                 ? "Done"
                 : "Download"}

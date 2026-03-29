@@ -11,6 +11,7 @@
 
 import type { SimpleMetadata } from "@hiogawa/ffmpeg/build/tsc/cpp/ex01-emscripten-types";
 import type { ContentRpc } from "../content-rpc.ts";
+import type { DownloadProgress } from "../content.ts";
 import type { WorkerRpc } from "../worker-rpc.ts";
 
 interface ByteRange {
@@ -114,8 +115,10 @@ export async function downloadFastSeek(opts: {
   itag: number;
   startTime: number;
   endTime: number;
+  onProgress?: (progress: DownloadProgress) => void;
 }): Promise<ArrayBuffer> {
-  const { rpc, workerRpc, videoId, itag, startTime, endTime } = opts;
+  const { rpc, workerRpc, videoId, itag, startTime, endTime, onProgress } =
+    opts;
 
   // 1. Download header bytes (contains EBML header + Cues)
   const headerResult = await rpc.downloadHeader({
@@ -139,6 +142,7 @@ export async function downloadFastSeek(opts: {
     format: headerResult.format,
     start: range.start,
     end: range.end,
+    onProgress,
   });
 
   // 5. Remux: combine header metadata + partial clusters into valid WebM.
