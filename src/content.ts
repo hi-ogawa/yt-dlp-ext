@@ -39,10 +39,11 @@ async function downloadBytes(
   for (let i = 0; i < numChunks; i++) {
     const chunkStart = start + CHUNK_SIZE * i;
     const chunkEnd = Math.min(start + CHUNK_SIZE * (i + 1), end);
-    const res = await fetch(url, {
-      headers: { range: `bytes=${chunkStart}-${chunkEnd - 1}` },
-    });
-    if (!res.ok && res.status !== 206) {
+    // Use &range= query param instead of Range header to avoid cross-CDN
+    // redirects that YouTube sometimes issues for large files, which fail
+    // CORS because the redirect target doesn't include CORS headers.
+    const res = await fetch(`${url}&range=${chunkStart}-${chunkEnd - 1}`);
+    if (!res.ok) {
       throw new Error(`Download failed: ${res.status}`);
     }
     if (!res.body) throw new Error("No response body");
