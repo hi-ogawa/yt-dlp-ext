@@ -115,9 +115,9 @@ export async function downloadFastSeek(opts: {
   itag: number;
   startTime: number;
   endTime: number;
-  onCallback?: (cb: ProgressCallback) => void;
+  onProgress?: (cb: ProgressCallback) => void;
 }): Promise<ArrayBuffer> {
-  const { rpc, workerRpc, videoId, itag, startTime, endTime, onCallback } =
+  const { rpc, workerRpc, videoId, itag, startTime, endTime, onProgress } =
     opts;
 
   // 1. Download header bytes (contains EBML header + Cues)
@@ -138,10 +138,12 @@ export async function downloadFastSeek(opts: {
   const range = findContainingRange(metadata, startTime, endTime);
 
   // 4. Download only the needed clusters (reuse format from step 1 — no second fetchPlayerApi)
-  const clusterData = await rpc.downloadRange(
-    { format: headerResult.format, start: range.start, end: range.end },
-    { onCallback },
-  );
+  const clusterData = await rpc.downloadRange({
+    format: headerResult.format,
+    start: range.start,
+    end: range.end,
+    onProgress,
+  });
 
   // 5. Remux: combine header metadata + partial clusters into valid WebM.
   // Pass the full header fetch as metadata — remuxWrapper re-parses it internally,

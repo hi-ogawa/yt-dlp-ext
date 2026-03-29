@@ -168,13 +168,8 @@ function DownloadForm({
 
       const workerRpc = await initWorkerRpc();
 
-      const onCallback = (cb: ProgressCallback) => {
-        if (cb.kind === "progress") {
-          setDownloadProgress({
-            bytesReceived: cb.bytesReceived,
-            totalBytes: cb.totalBytes,
-          });
-        }
+      const onProgress = ({ bytesReceived, totalBytes }: ProgressCallback) => {
+        setDownloadProgress({ bytesReceived, totalBytes });
       };
 
       setDownloadPhase("downloading");
@@ -188,13 +183,14 @@ function DownloadForm({
           itag: params.itag,
           startTime: params.startTime ?? 0,
           endTime: params.endTime ?? data.video.duration,
-          onCallback,
+          onProgress,
         });
       } else {
-        const result = await rpc.downloadFormat(
-          { videoId, itag: params.itag },
-          { onCallback },
-        );
+        const result = await rpc.downloadFormat({
+          videoId,
+          itag: params.itag,
+          onProgress,
+        });
         webmData = result.data;
       }
 

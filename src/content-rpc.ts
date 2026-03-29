@@ -1,25 +1,16 @@
 // postMessage RPC client for communicating with the content script
 // inside a YouTube embed iframe.
 
-import type { contentRpcHandlers, ProgressCallback } from "./content.ts";
+import type { contentRpcHandlers } from "./content.ts";
 import type {
-  RpcCallback,
-  RpcCallOptions,
+  RpcCallbackInvoke,
   RpcClient,
   RpcRequest,
   RpcResponse,
 } from "./lib/rpc.ts";
-import { createRpcProxy, once } from "./lib/rpc.ts";
+import { createRpcProxy, once, serializeParams } from "./lib/rpc.ts";
 
-type ContentRpcCallbacks = {
-  downloadFormat: ProgressCallback;
-  downloadRange: ProgressCallback;
-};
-
-export type ContentRpc = RpcClient<
-  typeof contentRpcHandlers,
-  ContentRpcCallbacks
->;
+export type ContentRpc = RpcClient<typeof contentRpcHandlers>;
 
 export const initContentRpc = once(
   () =>
@@ -50,25 +41,28 @@ export const initContentRpc = once(
 );
 
 function createIframeRpc(iframe: HTMLIFrameElement): ContentRpc {
-  function call(
-    method: string,
-    params: unknown,
-    opts?: RpcCallOptions<unknown>,
-  ): Promise<unknown> {
+  function call(method: string, params: unknown): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const id = crypto.randomUUID();
       const ac = new AbortController();
+      const callbacks = new Map<string, (...args: unknown[]) => void>();
+
+      const serializedParams = serializeParams(params, (cbId, fn) => {
+        callbacks.set(cbId, fn);
+      });
 
       window.addEventListener(
         "message",
         (e: MessageEvent) => {
-          const msg = e.data as RpcResponse | RpcCallback;
-          if (!msg || msg.id !== id) return;
-          if (msg.type === "ytdl-callback") {
-            opts?.onCallback?.(msg.payload);
+          const msg = e.data as RpcResponse | RpcCallbackInvoke;
+          if (!msg) return;
+          if (msg.type === "ytdl-callback-invoke") {
+            if (msg.requestId !== id) return;
+            callbacks.get(msg.callbackId)?.(...msg.args);
             return;
           }
           if (msg.type === "ytdl-response") {
+            if (msg.id !== id) return;
             ac.abort();
             if (msg.error) reject(new Error(msg.error));
             else resolve(msg.result);
@@ -81,11 +75,11 @@ function createIframeRpc(iframe: HTMLIFrameElement): ContentRpc {
         type: "ytdl-request",
         id,
         method,
-        params,
+        params: serializedParams,
       };
       iframe.contentWindow!.postMessage(request, "https://www.youtube.com");
     });
   }
 
-  return createRpcProxy<typeof contentRpcHandlers, ContentRpcCallbacks>(call);
+  return createRpcProxy<typeof contentRpcHandlers>(call);
 }
