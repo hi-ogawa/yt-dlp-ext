@@ -2,16 +2,15 @@
 
 ## Quick Reference
 
-| Command          | When                          |
-| ---------------- | ----------------------------- |
-| `pnpm dev`       | Start web app dev server      |
-| `pnpm build`     | Build web app (`dist/web/`)   |
-| `pnpm dev-ext`   | Start extension rebuild watch |
-| `pnpm build-ext` | Build extension (`dist/ext/`) |
-| `pnpm tsc`       | Type check                    |
-| `pnpm lint`      | Format + lint                 |
-| `pnpm test-e2e`  | Run e2e tests                 |
-| `pnpm release`   | Build web app + deploy        |
+| Command           | When                                   |
+| ----------------- | -------------------------------------- |
+| `pnpm dev`        | Start all dev servers (web + ext)      |
+| `pnpm build`      | Build web app + extension (sequential) |
+| `pnpm tsc`        | Type check                             |
+| `pnpm lint`       | Format + lint (with fixes)             |
+| `pnpm lint-check` | Check formatting + lint (no fixes)     |
+| `pnpm test-e2e`   | Run e2e tests                          |
+| `pnpm release`    | Deploy web app to Cloudflare Workers   |
 
 ## Key Docs
 
@@ -43,11 +42,10 @@ Web app + Chrome extension (MV3) for downloading YouTube audio.
 - Use `pnpm build` to verify web app code, `pnpm build-ext` to verify extension code
 - User runs `pnpm dev` / `pnpm dev-ext` manually in their terminal
 - **Never use `--` to pass args to pnpm scripts.**
-- **Run `pnpm lint` before every commit**
 
 ## E2E Tests
 
-Tests use a Playwright `webServer` (Vite dev server) for the web app UI, and load the built extension via persistent Chromium context. `pnpm test-e2e` runs `build-ext` automatically before launching.
+Tests use a Playwright `webServer` (Vite dev server) for the web app UI, and load the built extension via persistent Chromium context.
 
 ## Git Workflow
 
