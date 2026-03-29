@@ -22,9 +22,13 @@ async function resolveFormatUrl(videoId: string, itag: number) {
   return { result, format };
 }
 
-const CHUNK_SIZE = 5_000_000;
-
-/** Download a byte range from a URL using chunked Range requests. */
+/** Download a byte range from a URL, streaming the response for progress reporting.
+ *
+ * Uses &range= query param instead of Range header — YouTube CDN sometimes
+ * redirects Range header requests to a different CDN node, and the redirect
+ * target lacks CORS headers. The query param avoids the redirect entirely.
+ * Same approach as yt-dlp: yt_dlp/extractor/youtube/_video.py build_fragments()
+ */
 async function downloadBytes(
   url: string,
   start: number,
@@ -32,29 +36,19 @@ async function downloadBytes(
   onProgress?: (bytesReceived: number, totalBytes: number) => void,
 ): Promise<Uint8Array> {
   const totalSize = end - start;
-  const numChunks = Math.ceil(totalSize / CHUNK_SIZE);
+  const res = await fetch(`${url}&range=${start}-${end - 1}`);
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  if (!res.body) throw new Error("No response body");
+
   const data = new Uint8Array(totalSize);
+  const reader = res.body.getReader();
   let offset = 0;
 
-  for (let i = 0; i < numChunks; i++) {
-    const chunkStart = start + CHUNK_SIZE * i;
-    const chunkEnd = Math.min(start + CHUNK_SIZE * (i + 1), end);
-    // Use &range= query param instead of Range header to avoid cross-CDN
-    // redirects that YouTube sometimes issues for large files, which fail
-    // CORS because the redirect target doesn't include CORS headers.
-    // Same approach as yt-dlp: yt_dlp/extractor/youtube/_video.py build_fragments()
-    const res = await fetch(`${url}&range=${chunkStart}-${chunkEnd - 1}`);
-    if (!res.ok) {
-      throw new Error(`Download failed: ${res.status}`);
-    }
-    if (!res.body) throw new Error("No response body");
-    const reader = res.body.getReader();
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      data.set(value, offset);
-      offset += value.length;
-    }
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    data.set(value, offset);
+    offset += value.length;
     onProgress?.(offset, totalSize);
   }
 
