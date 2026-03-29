@@ -27,7 +27,6 @@ export interface RpcCallbackInvoke {
 
 // --- Param serialization ---
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyFn = (...args: any[]) => void;
 
 export function serializeParams(

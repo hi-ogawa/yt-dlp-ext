@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
+import type { DownloadProgress } from "./content.ts";
 import { downloadFastSeek } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
 import { useYoutubePlayerRef, type YTPlayer } from "./lib/youtube-player.tsx";
@@ -145,10 +146,7 @@ function DownloadForm({
   const [downloadPhase, setDownloadPhase] = useState<
     "downloading" | "processing"
   >();
-  const [downloadProgress, setDownloadProgress] = useState<{
-    bytesReceived: number;
-    totalBytes: number;
-  }>();
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress>();
 
   const downloadMutation = useMutation({
     mutationFn: async (params: {
