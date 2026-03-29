@@ -125,6 +125,7 @@ function DownloadForm({
 }) {
   const audioFormats = data.streamingFormats
     .filter(isAudioOnly)
+    .filter((f) => f.mimeType.includes("opus"))
     .filter((f) => f.contentLength)
     .sort((a, b) => (b.contentLength ?? 0) - (a.contentLength ?? 0));
 
