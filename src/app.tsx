@@ -208,7 +208,8 @@ function DownloadForm({
         trim,
       });
 
-      const opusFilename = `${params.title}.opus`;
+      const parts = [params.artist, params.album, params.title].filter(Boolean);
+      const opusFilename = `${parts.join(" - ")}.opus`;
       const blob = new Blob([opusData]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
