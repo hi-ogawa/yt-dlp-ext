@@ -42,6 +42,7 @@ async function downloadBytes(
     // Use &range= query param instead of Range header to avoid cross-CDN
     // redirects that YouTube sometimes issues for large files, which fail
     // CORS because the redirect target doesn't include CORS headers.
+    // Same approach as yt-dlp: yt_dlp/extractor/youtube/_video.py build_fragments()
     const res = await fetch(`${url}&range=${chunkStart}-${chunkEnd - 1}`);
     if (!res.ok) {
       throw new Error(`Download failed: ${res.status}`);
