@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
 import type { ContentRpc } from "./content-rpc.ts";
 import { initContentRpc } from "./content-rpc.ts";
-import type { ProgressCallback } from "./content.ts";
+import type { DownloadProgress } from "./content.ts";
 import { downloadFastSeek } from "./lib/fast-seek.ts";
 import { useTheme } from "./lib/theme.ts";
 import { useYoutubePlayerRef, type YTPlayer } from "./lib/youtube-player.tsx";
@@ -168,7 +168,7 @@ function DownloadForm({
 
       const workerRpc = await initWorkerRpc();
 
-      const onProgress = ({ bytesReceived, totalBytes }: ProgressCallback) => {
+      const onProgress = ({ bytesReceived, totalBytes }: DownloadProgress) => {
         setDownloadProgress({ bytesReceived, totalBytes });
       };
 

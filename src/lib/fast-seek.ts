@@ -11,7 +11,7 @@
 
 import type { SimpleMetadata } from "@hiogawa/ffmpeg/build/tsc/cpp/ex01-emscripten-types";
 import type { ContentRpc } from "../content-rpc.ts";
-import type { ProgressCallback } from "../content.ts";
+import type { DownloadProgress } from "../content.ts";
 import type { WorkerRpc } from "../worker-rpc.ts";
 
 interface ByteRange {
@@ -115,7 +115,7 @@ export async function downloadFastSeek(opts: {
   itag: number;
   startTime: number;
   endTime: number;
-  onProgress?: (cb: ProgressCallback) => void;
+  onProgress?: (progress: DownloadProgress) => void;
 }): Promise<ArrayBuffer> {
   const { rpc, workerRpc, videoId, itag, startTime, endTime, onProgress } =
     opts;

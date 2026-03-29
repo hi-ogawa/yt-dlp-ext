@@ -59,7 +59,7 @@ async function downloadBytes(
   return data;
 }
 
-export type ProgressCallback = {
+export type DownloadProgress = {
   bytesReceived: number;
   totalBytes: number;
 };
@@ -76,7 +76,7 @@ export const contentRpcHandlers = {
   async downloadFormat(params: {
     videoId: string;
     itag: number;
-    onProgress?: (cb: ProgressCallback) => void;
+    onProgress?: (progress: DownloadProgress) => void;
   }) {
     const { result, format } = await resolveFormatUrl(
       params.videoId,
@@ -115,7 +115,7 @@ export const contentRpcHandlers = {
     format: YouTubeStreamingFormat;
     start: number;
     end?: number;
-    onProgress?: (cb: ProgressCallback) => void;
+    onProgress?: (progress: DownloadProgress) => void;
   }) {
     const filesize = params.format.contentLength;
     if (!filesize) throw new Error("Unknown file size");
