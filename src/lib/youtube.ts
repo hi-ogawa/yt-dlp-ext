@@ -31,14 +31,19 @@ export interface PlayerApiResult {
 export async function fetchPlayerApi(
   videoId: string,
 ): Promise<PlayerApiResult> {
-  // yt-dlp's ANDROID_VR client — no POT policies
+  // yt-dlp's ANDROID_VR client — no POT policies. Keep the version pinned
+  // below 1.70 because newer ANDROID_VR responses can be SABR-only and omit
+  // direct format URLs.
+  // References:
+  // https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube/_base.py
+  // https://github.com/yt-dlp/yt-dlp/issues/12482
   const client = {
     clientId: "28",
     userAgent:
-      "com.google.android.apps.youtube.vr.oculus/1.71.26 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
+      "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
     context: {
       clientName: "ANDROID_VR",
-      clientVersion: "1.71.26",
+      clientVersion: "1.65.10",
       deviceMake: "Oculus",
       deviceModel: "Quest 3",
       androidSdkVersion: 32,
