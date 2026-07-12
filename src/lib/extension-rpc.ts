@@ -1,3 +1,4 @@
+// Based on https://github.com/hi-ogawa/ytsub-v5/blob/main/src/extension/lib/extension-rpc.ts
 import { createRpcProxy, type RpcClient } from "./rpc.ts";
 
 type RuntimeRequest = {
