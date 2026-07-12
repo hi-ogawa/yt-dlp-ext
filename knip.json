@@ -1,6 +1,7 @@
 {
   "entry": [
     "src/content.ts",
+    "src/relay.ts",
     "src/background.ts",
     "e2e/**/*.spec.ts",
     "scripts/*.ts"
