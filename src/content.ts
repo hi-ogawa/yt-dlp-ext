@@ -3,6 +3,7 @@
 // Handles postMessage RPC: fetchPlayerApi + chunked download.
 
 import type { backgroundRpcHandlers } from "./background.ts";
+import { fromBase64 } from "./lib/base64.ts";
 import { createRuntimeRelayRpc } from "./lib/extension-rpc.ts";
 import type { RpcCallbackInvoke, RpcRequest, RpcResponse } from "./lib/rpc.ts";
 import { deserializeParams } from "./lib/rpc.ts";
@@ -30,12 +31,7 @@ const backgroundRpc = createRuntimeRelayRpc<typeof backgroundRpcHandlers>();
 
 async function proxyFetch(url: string): Promise<Uint8Array> {
   const { data } = await backgroundRpc.proxyFetch({ url });
-  const binary = atob(data);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
+  return fromBase64(data);
 }
 
 /** Download a byte range from a URL using chunked Range requests. */

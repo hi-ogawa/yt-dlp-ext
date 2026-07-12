@@ -1,3 +1,4 @@
+import { toBase64 } from "./lib/base64.ts";
 import { registerRuntimeHandlers } from "./lib/extension-rpc.ts";
 
 chrome.action.onClicked.addListener(() => {
@@ -10,12 +11,8 @@ export const backgroundRpcHandlers = {
     if (!response.ok) {
       throw new Error(`Proxy fetch failed: ${response.status}`);
     }
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    let binary = "";
-    for (let i = 0; i < bytes.length; i += 0x8000) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    }
-    return { data: btoa(binary), finalUrl: response.url };
+    const data = toBase64(new Uint8Array(await response.arrayBuffer()));
+    return { data, finalUrl: response.url };
   },
 };
 
