@@ -24,6 +24,47 @@ async function resolveFormatUrl(videoId: string, itag: number) {
 
 const CHUNK_SIZE = 5_000_000;
 
+let proxyRequestId = 0;
+
+async function proxyFetch(url: string): Promise<Uint8Array> {
+  const id = String(proxyRequestId++);
+  return await new Promise((resolve, reject) => {
+    const onMessage = (
+      event: MessageEvent<{
+        type?: string;
+        id?: string;
+        data?: string;
+        error?: string;
+      }>,
+    ) => {
+      if (
+        event.source !== window ||
+        event.data?.type !== "ytdl-proxy-response" ||
+        event.data.id !== id
+      ) {
+        return;
+      }
+      window.removeEventListener("message", onMessage);
+      if (event.data.error) {
+        reject(new Error(event.data.error));
+        return;
+      }
+      if (!event.data.data) {
+        reject(new Error("Proxy response is missing data"));
+        return;
+      }
+      const binary = atob(event.data.data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      resolve(bytes);
+    };
+    window.addEventListener("message", onMessage);
+    window.postMessage({ type: "ytdl-proxy-request", id, url }, "*");
+  });
+}
+
 /** Download a byte range from a URL using chunked Range requests. */
 async function downloadBytes(
   url: string,
@@ -42,18 +83,11 @@ async function downloadBytes(
     // Use &range= query param instead of Range header to avoid cross-CDN
     // redirects that YouTube sometimes issues for large files, which fail
     // CORS because the redirect target doesn't include CORS headers.
-    const res = await fetch(`${url}&range=${chunkStart}-${chunkEnd - 1}`);
-    if (!res.ok) {
-      throw new Error(`Download failed: ${res.status}`);
-    }
-    if (!res.body) throw new Error("No response body");
-    const reader = res.body.getReader();
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      data.set(value, offset);
-      offset += value.length;
-    }
+    const chunk = await proxyFetch(
+      `${url}&range=${chunkStart}-${chunkEnd - 1}`,
+    );
+    data.set(chunk, offset);
+    offset += chunk.length;
     onProgress?.(offset, totalSize);
   }
 

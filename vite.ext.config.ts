@@ -26,6 +26,24 @@ export default defineConfig({
         },
       },
     },
+    relay: {
+      consumer: "client",
+      build: {
+        outDir: "./dist/ext",
+        minify: false,
+        emptyOutDir: false,
+        copyPublicDir: false,
+        rolldownOptions: {
+          input: {
+            "proxy-relay": "./src/proxy-relay.ts",
+          },
+          output: {
+            format: "iife",
+            entryFileNames: "[name].js",
+          },
+        },
+      },
+    },
     background: {
       consumer: "client",
       build: {
@@ -53,6 +71,7 @@ export default defineConfig({
   builder: {
     async buildApp(builder) {
       await builder.build(builder.environments.client);
+      await builder.build(builder.environments.relay);
       await builder.build(builder.environments.background);
       const outDir = builder.environments.client.config.build.outDir;
 
