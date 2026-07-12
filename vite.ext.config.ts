@@ -35,7 +35,7 @@ export default defineConfig({
         copyPublicDir: false,
         rolldownOptions: {
           input: {
-            "proxy-relay": "./src/proxy-relay.ts",
+            relay: "./src/relay.ts",
           },
           output: {
             format: "iife",

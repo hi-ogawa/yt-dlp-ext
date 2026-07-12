@@ -2,6 +2,8 @@
 // Injected into YouTube embed iframe inside the extension page.
 // Handles postMessage RPC: fetchPlayerApi + chunked download.
 
+import type { backgroundRpcHandlers } from "./background.ts";
+import { createRuntimeRelayRpc } from "./lib/extension-rpc.ts";
 import type { RpcCallbackInvoke, RpcRequest, RpcResponse } from "./lib/rpc.ts";
 import { deserializeParams } from "./lib/rpc.ts";
 import type { YouTubeStreamingFormat } from "./lib/youtube.ts";
@@ -24,45 +26,16 @@ async function resolveFormatUrl(videoId: string, itag: number) {
 
 const CHUNK_SIZE = 5_000_000;
 
-let proxyRequestId = 0;
+const backgroundRpc = createRuntimeRelayRpc<typeof backgroundRpcHandlers>();
 
 async function proxyFetch(url: string): Promise<Uint8Array> {
-  const id = String(proxyRequestId++);
-  return await new Promise((resolve, reject) => {
-    const onMessage = (
-      event: MessageEvent<{
-        type?: string;
-        id?: string;
-        data?: string;
-        error?: string;
-      }>,
-    ) => {
-      if (
-        event.source !== window ||
-        event.data?.type !== "ytdl-proxy-response" ||
-        event.data.id !== id
-      ) {
-        return;
-      }
-      window.removeEventListener("message", onMessage);
-      if (event.data.error) {
-        reject(new Error(event.data.error));
-        return;
-      }
-      if (!event.data.data) {
-        reject(new Error("Proxy response is missing data"));
-        return;
-      }
-      const binary = atob(event.data.data);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      resolve(bytes);
-    };
-    window.addEventListener("message", onMessage);
-    window.postMessage({ type: "ytdl-proxy-request", id, url }, "*");
-  });
+  const { data } = await backgroundRpc.proxyFetch({ url });
+  const binary = atob(data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
 
 /** Download a byte range from a URL using chunked Range requests. */
