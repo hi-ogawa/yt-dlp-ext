@@ -28,7 +28,10 @@ function DownloadPage() {
   });
   const rpc = rpcQuery.data!;
 
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(
+    () =>
+      parseVideoId(new URLSearchParams(location.search).get("v") ?? "") ?? "",
+  );
   const [showCta, setShowCta] = useState(false);
 
   useEffect(() => {
