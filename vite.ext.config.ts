@@ -75,10 +75,15 @@ export default defineConfig({
       await builder.build(builder.environments.background);
       const outDir = builder.environments.client.config.build.outDir;
 
-      // Modify manifest for dev builds
+      // Make locally loaded builds distinguishable in Chrome.
       const manifestPath = path.join(outDir, "manifest.json");
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-      if (process.env.DEV_EXT) {
+      if (process.env.CI) {
+        const prMatch = process.env.GITHUB_REF?.match(/refs\/pull\/(\d+)\//);
+        manifest.name = prMatch
+          ? `yt-dlp-ext [PR#${prMatch[1]} ${rev}]`
+          : `yt-dlp-ext [${rev}]`;
+      } else if (process.env.DEV_EXT) {
         const branch = git("git branch --show-current");
         const time = buildTime.toLocaleTimeString("en-GB", {
           hour: "2-digit",
