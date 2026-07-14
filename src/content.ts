@@ -2,6 +2,9 @@
 // Injected into YouTube embed iframe inside the extension page.
 // Handles postMessage RPC: fetchPlayerApi + chunked download.
 
+import type { backgroundRpcHandlers } from "./background.ts";
+import { fromBase64 } from "./lib/base64.ts";
+import { createRuntimeRelayRpc } from "./lib/extension-rpc.ts";
 import type { RpcCallbackInvoke, RpcRequest, RpcResponse } from "./lib/rpc.ts";
 import { deserializeParams } from "./lib/rpc.ts";
 import type { YouTubeStreamingFormat } from "./lib/youtube.ts";
@@ -24,6 +27,13 @@ async function resolveFormatUrl(videoId: string, itag: number) {
 
 const CHUNK_SIZE = 5_000_000;
 
+const backgroundRpc = createRuntimeRelayRpc<typeof backgroundRpcHandlers>();
+
+async function proxyFetch(url: string): Promise<Uint8Array> {
+  const { data } = await backgroundRpc.proxyFetch({ url });
+  return fromBase64(data);
+}
+
 /** Download a byte range from a URL using chunked Range requests. */
 async function downloadBytes(
   url: string,
@@ -42,18 +52,11 @@ async function downloadBytes(
     // Use &range= query param instead of Range header to avoid cross-CDN
     // redirects that YouTube sometimes issues for large files, which fail
     // CORS because the redirect target doesn't include CORS headers.
-    const res = await fetch(`${url}&range=${chunkStart}-${chunkEnd - 1}`);
-    if (!res.ok) {
-      throw new Error(`Download failed: ${res.status}`);
-    }
-    if (!res.body) throw new Error("No response body");
-    const reader = res.body.getReader();
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      data.set(value, offset);
-      offset += value.length;
-    }
+    const chunk = await proxyFetch(
+      `${url}&range=${chunkStart}-${chunkEnd - 1}`,
+    );
+    data.set(chunk, offset);
+    offset += chunk.length;
     onProgress?.(offset, totalSize);
   }
 

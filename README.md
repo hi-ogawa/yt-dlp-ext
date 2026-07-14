@@ -21,6 +21,6 @@ pnpm i
 pnpm dev
 
 # Deploy web app to Cloudflare Workers
-pnpm build
+pnpm build-web
 pnpm release
 ```
