@@ -1,8 +1,16 @@
 import { toBase64 } from "./lib/base64.ts";
 import { registerRuntimeHandlers } from "./lib/extension-rpc.ts";
+import { parseVideoId } from "./lib/youtube-utils.ts";
 
-chrome.action.onClicked.addListener(() => {
-  chrome.tabs.create({ url: "https://yt-dlp-ext.hiro18181.workers.dev/" });
+const APP_URL = "https://yt-dlp-ext.hiro18181.workers.dev/";
+
+chrome.action.onClicked.addListener((tab) => {
+  const url = new URL(APP_URL);
+  const videoId = parseVideoId(tab.url ?? "");
+  if (videoId) {
+    url.searchParams.set("v", videoId);
+  }
+  chrome.tabs.create({ url: url.href });
 });
 
 export const backgroundRpcHandlers = {

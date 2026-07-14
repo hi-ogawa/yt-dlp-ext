@@ -9,6 +9,11 @@ test("renders with search form", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Search" })).toBeVisible();
 });
 
+test("prefills video ID from query parameter", async ({ page }) => {
+  await page.goto(`/?v=${TEST_VIDEO_ID}`);
+  await expect(page.getByPlaceholder("ID or URL")).toHaveValue(TEST_VIDEO_ID);
+});
+
 test("invalid video ID shows error toast", async ({ page }) => {
   await page.goto("/");
   await page.getByPlaceholder("ID or URL").fill("invalid");

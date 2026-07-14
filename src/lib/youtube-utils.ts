@@ -2,15 +2,35 @@ import type { YouTubeStreamingFormat } from "./youtube.ts";
 
 export function parseVideoId(value: string): string | undefined {
   const trimmed = value.trim();
-  if (trimmed.length === 11 && /^[\w-]+$/.test(trimmed)) return trimmed;
-  if (trimmed.match(/youtube\.com|youtu\.be/)) {
-    try {
-      const url = new URL(trimmed);
-      if (url.hostname === "youtu.be") return url.pathname.substring(1);
-      return url.searchParams.get("v") ?? undefined;
-    } catch {}
+  if (isVideoId(trimmed)) return trimmed;
+
+  try {
+    const url = new URL(trimmed);
+    const hostname = url.hostname.replace(/^www\./, "");
+    let videoId: string | undefined;
+    if (hostname === "youtu.be") {
+      videoId = url.pathname.split("/")[1];
+    } else if (
+      hostname === "youtube.com" ||
+      hostname.endsWith(".youtube.com")
+    ) {
+      videoId = url.searchParams.get("v") ?? undefined;
+      if (!videoId) {
+        const [kind, id] = url.pathname.split("/").filter(Boolean);
+        if (["embed", "live", "shorts"].includes(kind ?? "")) {
+          videoId = id;
+        }
+      }
+    }
+    if (videoId && isVideoId(videoId)) return videoId;
+  } catch {
+    // Not a URL.
   }
   return undefined;
+}
+
+function isVideoId(value: string): boolean {
+  return value.length === 11 && /^[\w-]+$/.test(value);
 }
 
 export function formatBytes(bytes: number): string {
