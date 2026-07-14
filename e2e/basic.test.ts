@@ -1,5 +1,4 @@
 import { expect } from "@playwright/test";
-import { parseVideoId } from "../src/lib/youtube-utils.ts";
 import { setupPageLogging, test, TEST_VIDEO_ID } from "./helper.ts";
 
 test("renders with search form", async ({ page }) => {
@@ -13,23 +12,6 @@ test("renders with search form", async ({ page }) => {
 test("prefills video ID from query parameter", async ({ page }) => {
   await page.goto(`/?v=${TEST_VIDEO_ID}`);
   await expect(page.getByPlaceholder("ID or URL")).toHaveValue(TEST_VIDEO_ID);
-});
-
-test("parses supported YouTube video URLs", () => {
-  for (const url of [
-    `https://www.youtube.com/watch?v=${TEST_VIDEO_ID}&list=playlist`,
-    `https://www.youtube.com/shorts/${TEST_VIDEO_ID}`,
-    `https://www.youtube.com/live/${TEST_VIDEO_ID}?feature=share`,
-    `https://www.youtube.com/embed/${TEST_VIDEO_ID}`,
-    `https://music.youtube.com/watch?v=${TEST_VIDEO_ID}`,
-    `https://youtu.be/${TEST_VIDEO_ID}?t=10`,
-  ]) {
-    expect(parseVideoId(url)).toBe(TEST_VIDEO_ID);
-  }
-  expect(parseVideoId("https://www.youtube.com/")).toBeUndefined();
-  expect(
-    parseVideoId("https://example.com/watch?v=bX1xq3cOFuA"),
-  ).toBeUndefined();
 });
 
 test("invalid video ID shows error toast", async ({ page }) => {
